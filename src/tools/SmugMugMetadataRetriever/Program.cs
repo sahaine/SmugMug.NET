@@ -62,6 +62,11 @@ namespace SmugMugMetadataRetriever
             {
                 jsonSer.Serialize(sw, types);
             }
+
+#if DEBUG
+            Console.WriteLine("Complete"); 
+            Console.ReadKey();
+#endif 
         }
     }
 }

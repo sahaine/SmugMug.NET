@@ -10,6 +10,7 @@ using SmugMug.v2.Utility;
 using System;
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -126,6 +127,8 @@ namespace SmugMug.v2.Types
             using (HttpResponseMessage response = await httpClient.GetAsync(requestUri))
             using (StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync()))
             {
+                Debug.WriteLine(streamReader.ReadToEnd());
+
             }
         }
 
@@ -136,6 +139,7 @@ namespace SmugMug.v2.Types
             using (HttpResponseMessage response = await httpClient.PostAsync(requestUri, httpContent))
             using (StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync()))
             {
+                Debug.WriteLine(streamReader.ReadToEnd());
             }
         }
 
@@ -149,6 +153,7 @@ namespace SmugMug.v2.Types
                 using (HttpResponseMessage response = await httpClient.SendAsync(message))
                 using (StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync()))
                 {
+                    Debug.WriteLine(streamReader.ReadToEnd());
                 }
             }
         }

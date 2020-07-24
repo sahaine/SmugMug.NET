@@ -9,21 +9,25 @@ namespace SmugMug.v2.Types
     public partial class AlbumEntity : SmugMugEntity
     {
         private string _albumKey;
+        private string _albumTemplateUri;
         private bool _allowDownloads;
         private bool _autoRename;
         private string _backprinting;
         private BoutiquePackagingEnum _boutiquePackaging;
+        private bool _canBuy;
+        private bool _canFavorite;
         private bool _canRank;
         private bool _canShare;
         private bool _clean;
         private bool _comments;
-        private string _communityUri;
+        private bool _commerceLightbox;
         private DateTime _date;
         private string _description;
         private string _downloadPassword;
         private bool _eXIF;
         private bool _external;
         private bool _familyEdit;
+        private string _favoriteAlbumUrl;
         private bool _filenames;
         private bool _friendEdit;
         private bool _geography;
@@ -41,6 +45,7 @@ namespace SmugMug.v2.Types
         private string _niceName;
         private string _nodeID;
         private long _originalSizes;
+        private bool _packages;
         private bool _packagingBranding;
         private string _password;
         private string _passwordHint;
@@ -49,9 +54,9 @@ namespace SmugMug.v2.Types
         private PrivacyEnum _privacy;
         private long _proofDays;
         private bool _protected;
-        private string _responseLevel;
         private SecurityTypeEnum _securityType;
         private bool _share;
+        private bool _slideshow;
         private SmugSearchableEnum _smugSearchable;
         private SortDirectionEnum _sortDirection;
         private SortMethodEnum _sortMethod;
@@ -65,7 +70,6 @@ namespace SmugMug.v2.Types
         private string _urlPath;
         private bool _watermark;
         private string _watermarkUri;
-        private string _webUri;
         private bool _worldSearchable;
 
 
@@ -78,6 +82,20 @@ namespace SmugMug.v2.Types
                 {
                     NotifyPropertyValueChanged("AlbumKey", oldValue:_albumKey, newValue: value);
                     _albumKey = value;     
+                }
+            }
+        }
+
+
+        public string AlbumTemplateUri {
+            get {
+                return _albumTemplateUri;
+            }
+            set {
+                if (_albumTemplateUri != value)
+                {
+                    NotifyPropertyValueChanged("AlbumTemplateUri", oldValue:_albumTemplateUri, newValue: value);
+                    _albumTemplateUri = value;     
                 }
             }
         }
@@ -139,6 +157,34 @@ namespace SmugMug.v2.Types
         }
 
 
+        public bool CanBuy {
+            get {
+                return _canBuy;
+            }
+            set {
+                if (_canBuy != value)
+                {
+                    NotifyPropertyValueChanged("CanBuy", oldValue:_canBuy, newValue: value);
+                    _canBuy = value;     
+                }
+            }
+        }
+
+
+        public bool CanFavorite {
+            get {
+                return _canFavorite;
+            }
+            set {
+                if (_canFavorite != value)
+                {
+                    NotifyPropertyValueChanged("CanFavorite", oldValue:_canFavorite, newValue: value);
+                    _canFavorite = value;     
+                }
+            }
+        }
+
+
         public bool CanRank {
             get {
                 return _canRank;
@@ -195,15 +241,15 @@ namespace SmugMug.v2.Types
         }
 
 
-        public string CommunityUri {
+        public bool CommerceLightbox {
             get {
-                return _communityUri;
+                return _commerceLightbox;
             }
             set {
-                if (_communityUri != value)
+                if (_commerceLightbox != value)
                 {
-                    NotifyPropertyValueChanged("CommunityUri", oldValue:_communityUri, newValue: value);
-                    _communityUri = value;     
+                    NotifyPropertyValueChanged("CommerceLightbox", oldValue:_commerceLightbox, newValue: value);
+                    _commerceLightbox = value;     
                 }
             }
         }
@@ -265,6 +311,8 @@ namespace SmugMug.v2.Types
         }
 
 
+        [Obsolete("2015-09-08")]
+
         public bool External {
             get {
                 return _external;
@@ -288,6 +336,20 @@ namespace SmugMug.v2.Types
                 {
                     NotifyPropertyValueChanged("FamilyEdit", oldValue:_familyEdit, newValue: value);
                     _familyEdit = value;     
+                }
+            }
+        }
+
+
+        public string FavoriteAlbumUrl {
+            get {
+                return _favoriteAlbumUrl;
+            }
+            set {
+                if (_favoriteAlbumUrl != value)
+                {
+                    NotifyPropertyValueChanged("FavoriteAlbumUrl", oldValue:_favoriteAlbumUrl, newValue: value);
+                    _favoriteAlbumUrl = value;     
                 }
             }
         }
@@ -489,6 +551,8 @@ namespace SmugMug.v2.Types
         }
 
 
+        [Obsolete("2014-11-20")]
+
         public string NiceName {
             get {
                 return _niceName;
@@ -526,6 +590,20 @@ namespace SmugMug.v2.Types
                 {
                     NotifyPropertyValueChanged("OriginalSizes", oldValue:_originalSizes, newValue: value);
                     _originalSizes = value;     
+                }
+            }
+        }
+
+
+        public bool Packages {
+            get {
+                return _packages;
+            }
+            set {
+                if (_packages != value)
+                {
+                    NotifyPropertyValueChanged("Packages", oldValue:_packages, newValue: value);
+                    _packages = value;     
                 }
             }
         }
@@ -643,20 +721,6 @@ namespace SmugMug.v2.Types
         }
 
 
-        public string ResponseLevel {
-            get {
-                return _responseLevel;
-            }
-            set {
-                if (_responseLevel != value)
-                {
-                    NotifyPropertyValueChanged("ResponseLevel", oldValue:_responseLevel, newValue: value);
-                    _responseLevel = value;     
-                }
-            }
-        }
-
-
         public SecurityTypeEnum SecurityType {
             get {
                 return _securityType;
@@ -680,6 +744,20 @@ namespace SmugMug.v2.Types
                 {
                     NotifyPropertyValueChanged("Share", oldValue:_share, newValue: value);
                     _share = value;     
+                }
+            }
+        }
+
+
+        public bool Slideshow {
+            get {
+                return _slideshow;
+            }
+            set {
+                if (_slideshow != value)
+                {
+                    NotifyPropertyValueChanged("Slideshow", oldValue:_slideshow, newValue: value);
+                    _slideshow = value;     
                 }
             }
         }
@@ -769,6 +847,8 @@ namespace SmugMug.v2.Types
         }
 
 
+        [Obsolete("2014-11-20")]
+
         public string Title {
             get {
                 return _title;
@@ -809,6 +889,7 @@ namespace SmugMug.v2.Types
                 }
             }
         }
+
 
         public string UrlName {
             get {
@@ -861,20 +942,6 @@ namespace SmugMug.v2.Types
                 {
                     NotifyPropertyValueChanged("WatermarkUri", oldValue:_watermarkUri, newValue: value);
                     _watermarkUri = value;     
-                }
-            }
-        }
-
-
-        public string WebUri {
-            get {
-                return _webUri;
-            }
-            set {
-                if (_webUri != value)
-                {
-                    NotifyPropertyValueChanged("WebUri", oldValue:_webUri, newValue: value);
-                    _webUri = value;     
                 }
             }
         }

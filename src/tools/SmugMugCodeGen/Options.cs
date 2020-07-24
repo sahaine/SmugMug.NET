@@ -17,7 +17,7 @@ namespace SmugMugCodeGen
         public Options(string[] args)
         {
             OutputDir = args[0];
-            OutputDirEnums = Path.Combine(OutputDir, @"\..\Enums");
+            OutputDirEnums = Path.Combine(OutputDir, @"..\Enums\");
 
             int index = 1;
             GenerateManualFiles = false;

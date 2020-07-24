@@ -20,6 +20,7 @@ namespace SmugMugCodeGen
         {
             ConsolePrinter.Write(ConsoleColor.White, "Usage:");
             ConsolePrinter.Write(ConsoleColor.Cyan, "smugmugcodegen.exe <outputFolder> [GenerateManualFiles] [<metadataFiles>] ");
+            Console.ReadKey();
         }
 
         static void Main(string[] args)
@@ -48,6 +49,11 @@ namespace SmugMugCodeGen
             WriteClasses(metadata);
 
             WriteEnums();
+#if DEBUG
+            Console.WriteLine("Complete");
+            Console.ReadKey();
+#endif 
+
         }
 
         private static void WriteEnums()
@@ -119,18 +125,6 @@ namespace SmugMugCodeGen
         {
             string additionalUsings = string.IsNullOrEmpty(usings) ? string.Empty : (Environment.NewLine + usings);
             return string.Format(Constants.ClassDefinition, className, members, obsolete, additionalUsings);
-        }
-
-        private static string GetObsoleteString(string deprecated)
-        {
-            //if (string.IsNullOrEmpty(deprecated))
-            return string.Empty;
-
-            StringBuilder obsolete = new StringBuilder();
-
-            obsolete.AppendLine("");
-            obsolete.Append("    [Obsolete]");
-            return obsolete.ToString();
         }
 
         private static Dictionary<string, Entity> LoadMetadataFromFile(string[] files)

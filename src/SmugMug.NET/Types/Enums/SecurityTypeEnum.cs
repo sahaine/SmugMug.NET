@@ -6,8 +6,9 @@ namespace SmugMug.v2.Types
 {
     public enum SecurityTypeEnum 
     {
-        None,
-        Password,
-        GrantAccess
+        NotSet = 0,
+        None = 1 ,
+        Password = 2,
+        GrantAccess = 4
     }
 }

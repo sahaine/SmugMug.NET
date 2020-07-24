@@ -14,7 +14,7 @@ namespace SmugMugCodeGen
         //TODO: This can probably be updated to 
         // Dictionary<string, List<HashSet<string>>>>
         // that way we don't have to do look-ups for the typename traversing the dictionary multiple times
-        static Dictionary<string, Dictionary<string, string>> mapTypeToMembers = new Dictionary<string, Dictionary<string, string>>();
+        static Dictionary<string, Dictionary<string, Tuple<string, int>>> mapTypeToMembers = new Dictionary<string, Dictionary<string, Tuple<string, int>>>();
 
         //TODO: We need to be able to rename types
         // for now, hardcode it...
@@ -82,7 +82,7 @@ namespace SmugMugCodeGen
                 bool found = false;
                 Dictionary<string, string> NormalizedToActualMembers = new Dictionary<string, string>();
 
-                Dictionary<string, string> existingMembers;
+                Dictionary<string, Tuple<string, int>> existingMembers;
                 foreach (var item in listOfEnum)
                 {
                     existingMembers = mapTypeToMembers[item];
@@ -100,9 +100,11 @@ namespace SmugMugCodeGen
                     if (overlap)
                     {
                         // let's merge the two
+                        var i = 0;
                         foreach (var opt in prop.Options)
                         {
-                            existingMembers[Helpers.NormalizeString(opt)] = opt;
+                            existingMembers[Helpers.NormalizeString(opt)] = new Tuple<string, int>(opt, (int)prop.OptionCountLimits.Min + i);
+                            i++;
                         }
                         found = true;
                     }
@@ -110,10 +112,12 @@ namespace SmugMugCodeGen
 
                 if (!found)
                 {
-                    existingMembers = new Dictionary<string, string>();
+                    existingMembers = new Dictionary<string, Tuple<string, int>>();
+                    var i = 0;
                     foreach (var item in prop.Options)
                     {
-                        existingMembers.Add(Helpers.NormalizeString(item), item);
+                        existingMembers.Add(Helpers.NormalizeString(item), new Tuple<string, int>(item, (int)prop.OptionCountLimits.Min + i));
+                        i++;
                     }
 
                     // Do we have a conflict?
@@ -129,7 +133,7 @@ namespace SmugMugCodeGen
         internal static string BuildMethodReturningParametersToSendInRequest(Entity value)
         {
             StringBuilder sb = new StringBuilder();
-            
+
             if (value.HttpMethodsAndParameters.ContainsKey("patch"))
             {
                 string patchParams = string.Join(",", value.HttpMethodsAndParameters["patch"].Select(p => string.Format("\"{0}\"", p.Name)));
@@ -161,16 +165,16 @@ namespace SmugMugCodeGen
                 StringBuilder enumValues = new StringBuilder();
                 foreach (var enumValue in item.Value)
                 {
-                    if (enumValue.Key != enumValue.Value)
+                    if (enumValue.Key != enumValue.Value.Item1)
                     {
                         // we have to emit the attribute
-                        enumValues.AppendLine(string.Format("        [EnumMember(Value=\"{0}\")]", enumValue.Value));
-                        enumValues.AppendLine(string.Format("        {0},", enumValue.Key));
+                        enumValues.AppendLine(string.Format("        [EnumMember(Value=\"{0}\")]", enumValue.Value.Item1));
+                        enumValues.AppendLine(string.Format("        {0} = {1},", enumValue.Key, enumValue.Value.Item2));
                         hasGeneratedAttribute = true;
                     }
                     else
                     {
-                        enumValues.AppendLine(string.Format("        {0},", enumValue.Key));
+                        enumValues.AppendLine(string.Format("        {0} = {1},", enumValue.Key, enumValue.Value.Item2));
                     }
                 }
 
@@ -181,8 +185,6 @@ namespace SmugMugCodeGen
                 string enumCode = string.Format(Constants.EnumDefinition, usingStatements, typeName + "Enum", enumValues.ToString());
                 enumTypeDefs.Add(typeName, enumCode);
             }
-
-
 
             return enumTypeDefs;
         }

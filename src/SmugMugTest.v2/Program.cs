@@ -19,19 +19,42 @@ namespace SmugMugTest
             SiteEntity site = new SiteEntity(s_oauthToken);
             var user = site.GetAuthenticatedUserAsync().Result;
 
-            System.Console.WriteLine(user.Name);
+           
+            System.Console.WriteLine($"{user.Name} {user.TotalAccountSize}");
 
-            var album = user.GetAllAlbumsAsync().Result.FirstOrDefault();
+            var newAbum = new AlbumEntity(s_oauthToken)
+            {
+                Description = "StevesTest",
+                Name = "StevesTest",
+                UrlName = "StevesTest",
+                Keywords = "SteveTest",
 
-            Console.WriteLine(album.Name);
+                SecurityType = SecurityTypeEnum.Password,
+                Privacy = PrivacyEnum.Unlisted,
+                PasswordHint = "Its on your Invoice",
+                Password = "StevesTest",
 
-            var image = album.GetImagesAsync().Result.FirstOrDefault();
+                AllowDownloads = true,
+                LargestSize = LargestSizeEnum.Original, 
+                EXIF = true,
+                
+            };
+    
+            newAbum.CreateAsync(user.NickName, "Customers" ).Wait();
+
+            var albums = user.GetAllAlbumsAsync().Result;
+
+            Array.ForEach(albums, a => Console.WriteLine(a.Name));
+
+
+
+            var image = albums.FirstOrDefault()?.GetImagesAsync().Result.FirstOrDefault();
 
             Console.WriteLine(image.Title);
 
             image.Caption = "test";
 
             image.SaveAsync().Wait();
-       }
+        }
     }
 }

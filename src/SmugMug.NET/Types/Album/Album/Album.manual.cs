@@ -19,6 +19,14 @@ namespace SmugMug.v2.Types
         //TODO: Implement search:
         // https://api.smugmug.com/api/v2/album!search?Scope=&SortDirection=Descending&SortMethod=Rank&Text=
 
+        public async Task CreateAsync(string userNickName, string parentFolder)
+        {
+            // We get the modified properties and post them to the objects's uri
+            var patchPropertiesWithValues = GetModifedPropertiesValue(GetPatchPropertiesName());
+
+            await PostRequestAsync(Constants.Addresses.SmugMug + $"/api/v2/folder/user/{userNickName}/{parentFolder}!albums", JsonHelpers.GetPayloadAsJson(patchPropertiesWithValues));
+        }
+
         public async Task ApplyAlbumTemplateAsync(AlbumTemplateEntity template)
         {
             var postProperties = new List<KeyValuePair<string, object>>();

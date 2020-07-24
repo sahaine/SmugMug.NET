@@ -41,7 +41,7 @@ namespace SmugMug.v2.Types
                 // currentData is the value that was first captured.
                 // setting it back to that value should remove this property from the
                 // list of changed values
-                if (dataInStorage.OldValue.Equals(newValue))
+                if (dataInStorage.OldValue != null && dataInStorage.OldValue.Equals(newValue))
                 {
                     Debug.WriteLine("Same as original {0}, remove tracking", newValue);
                     lock (_syncLock)
@@ -61,7 +61,7 @@ namespace SmugMug.v2.Types
             }
 
             // if the old and new values are the same, nothing to do.
-            if (oldValue.Equals(newValue))
+            if (oldValue != null && oldValue.Equals(newValue))
                 return;
 
             dataInStorage = new PropertyData(oldValue, newValue);

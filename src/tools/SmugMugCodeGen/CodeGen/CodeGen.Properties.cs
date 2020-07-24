@@ -75,12 +75,18 @@ namespace SmugMugCodeGen
                 string fieldName = "_" + char.ToLower(propName[0]) + propName.Substring(1);
                 propertyFields.AppendLine(string.Format(Constants.PropertyFieldDefinition, propType, fieldName));
 
+                if (!string.IsNullOrWhiteSpace(prop.Deprecated))
+                {
+                    propertyAccesors.AppendLine(string.Format(Constants.PropertyDefintionsObsolete, prop.Deprecated));
+                }
+
                 // if the property is part of the patch/post list, then it should be generated as keeping track of changes
                 if (IsPatchOrPost(prop.Name, parentEntity))
                 {
                     propertyAccesors.AppendLine(string.Format(Constants.PropertyDefinition, propType, propName, fieldName));
                 }
-                else {
+                else 
+                {
                     propertyAccesors.AppendLine(string.Format(Constants.PropertyDefinitionReadOnly, propType, propName, fieldName));
                 }
 

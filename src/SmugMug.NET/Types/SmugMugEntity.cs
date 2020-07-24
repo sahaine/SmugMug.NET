@@ -73,6 +73,7 @@ namespace SmugMug.v2.Types
             await PatchRequestAsync(Constants.Addresses.SmugMug + AppendSuffixToUrl(this.PatchUri), JsonHelpers.GetPayloadAsJson(patchPropertiesWithValues));
         }
 
+
         protected async Task CreateAsync(string uri, List<string> properties)
         {
             var patchPropertiesWithValues = GetPropertiesValue(properties);
@@ -83,9 +84,11 @@ namespace SmugMug.v2.Types
         protected string AppendSuffixToUrl(string url)
         {
             // we are going to use the value on the Uri and use that, if it exists.
+            if (string.IsNullOrEmpty(Uri))
+                return url;
 
             // if the Uri string is not empty, has more than 2 characters and we have a suffix (ie. image-1), use that.
-            if (!string.IsNullOrEmpty(Uri) && Uri.Length > 2 && Uri[Uri.Length - 2] == '-')
+            if (Uri.Length > 2 && Uri[Uri.Length - 2] == '-')
             {
                 return $"{url}-{Uri[Uri.Length - 1]}";
             }

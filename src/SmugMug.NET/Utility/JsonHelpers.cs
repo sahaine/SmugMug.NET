@@ -73,8 +73,8 @@ namespace SmugMug.v2.Utility
                     jsonWrite.WritePropertyName(property.Key);
 
                     if (!property.Value.GetType().IsArray)
-                    {
-                        jsonWrite.WriteValue(property.Value);
+                    {                        
+                        jsonWrite.WriteValue( property.Value is Enum ? property.Value.ToString() :  property.Value);
                         continue;
                     }
 

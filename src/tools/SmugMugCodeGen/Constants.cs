@@ -1,11 +1,16 @@
 ﻿// Copyright (c) Alex Ghiondea. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System;
+
 namespace SmugMugCodeGen
 {
     public static class Constants
     {
         public const string PropertyFieldDefinition = @"        private {0} {1};";
+
+        public const string PropertyDefintionsObsolete = @"
+        [Obsolete(""{0}"")]";
 
         public const string PropertyDefinition = @"
         public {0} {1} {{

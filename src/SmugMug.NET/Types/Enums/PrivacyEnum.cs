@@ -6,8 +6,8 @@ namespace SmugMug.v2.Types
 {
     public enum PrivacyEnum 
     {
-        Public,
-        Unlisted,
-        Private
+        Public = 1,
+        Unlisted = 2,
+        Private = 3
     }
 }

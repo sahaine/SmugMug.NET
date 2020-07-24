@@ -69,6 +69,7 @@ namespace SmugMug.Shared.Descriptors
                 case "time":
                 case "date":
                 case "datetime":
+                case "datetimeiso8601":
                     {
                         return new DateTimeProperty(item);
                     }
