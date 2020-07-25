@@ -45,10 +45,10 @@
          }
 
          var subFolder = parentFolder.GetChildrenAsync(type: nodeType).Result?.FirstOrDefault(f => f.Name == subFolderName);
-         subFolder.Key = key;
 
          if (subFolder != null)
          {
+            subFolder.Key = key;
             _cache.Add(key, subFolder); 
             ConsolePrinter.Write(ConsoleColor.Green, $"Loaded {nodeType} : {subFolderName}");
             return subFolder;
@@ -64,7 +64,7 @@
             Name = subFolderName,
             UrlName = subFolderName,
             Keywords = new[] { subFolderName },
-            Parent = parentFolder,
+            Parent = parentFolder,           
             Privacy = string.IsNullOrWhiteSpace(subFolderPassword) ? PrivacyEnum.Public : PrivacyEnum.Unlisted,
             SecurityType = string.IsNullOrWhiteSpace(subFolderPassword) ? SecurityTypeEnum.None : SecurityTypeEnum.Password,
             Password = string.IsNullOrWhiteSpace(subFolderPassword) ? null : subFolderPassword,
@@ -89,8 +89,6 @@
 
          ConsolePrinter.Write(ConsoleColor.White, $"Uploading {files.Count()} images to {albumName}.");
 
-         
-
          var albumNode = GetSubNode(parentFolder, albumName, TypeEnum.Album);
 
          try
@@ -110,6 +108,13 @@
 
                var albumUri = albumNode.Uris.Single(uri => uri.Key == "Album").Value.Uri;
                var album = AlbumEntity.RetrieveEntityAsync<AlbumEntity>(_oauthToken, $"{Constants.Addresses.SmugMugApi}{albumUri}").Result;
+
+               if (albumName == "Original" && album.CanBuy)
+               {
+                  album.CanBuy = false;
+                  album.SaveAsync().Wait(); 
+               }
+
                var images = album.GetImagesAsync().Result;
 
                AddUploadHeaders(client, albumUri);
@@ -126,6 +131,12 @@
 
                   var fileItem = new FileInfo(file);                  
                   var timeout = TimeSpan.FromMilliseconds(fileItem.Length / 1024 * 10); // 100KB a second should be achievable
+
+                  if (timeout < TimeSpan.FromSeconds(30))
+                  {
+                     timeout = TimeSpan.FromSeconds(30); 
+                  }
+
                   var tokenSource = new CancellationTokenSource();
 
                   ConsolePrinter.Write(ConsoleColor.Cyan, $"Uploading {fileItem.Name} timeout {timeout}");

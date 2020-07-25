@@ -19,6 +19,7 @@
    using SmugMug.v2.Types;
    using SmugMugShared;
    using SmugMugShared.Extensions;
+   using SmugMugTest.v2;
 
    class Program
    {
@@ -31,6 +32,58 @@
 
          _uploader = new ImageUploader(_oauthToken);
 
+         Upload2020Archives();
+
+         //var fileList = Directory.GetFiles(@"E:\SampleImages", "*.jpg").ToList();
+         //if (!_oauthToken.Equals(OAuthToken.Invalid))
+         //{
+         //    ProcessImages("Haine", "Ha1ne99", "2020-07-24", fileList, fileList, fileList, fileList, fileList);
+         //}
+
+#if DEBUG
+         Console.WriteLine("Complete");
+         Console.ReadKey();
+#endif
+      }
+
+      private static void Upload2020Archives()
+      {
+         var Archives2020 = Directory.GetDirectories(@"\\vmwarehost\KHPArchive\KHP_ARCHIVE", "2020*", SearchOption.TopDirectoryOnly);
+
+         foreach (var archiveFolder in Archives2020)
+         {
+            var folderName = new DirectoryInfo(archiveFolder).Name;
+            var parts = folderName.Split('_');
+            var customerId = parts.Last();
+
+            if (string.Equals(customerId, "Test", StringComparison.InvariantCultureIgnoreCase) ||
+                string.Equals(customerId, "Haine", StringComparison.InvariantCultureIgnoreCase))
+            {
+               continue;
+            }
+
+            var customerPassword = new IniFile($@"\\khpserver\CustomerData\{customerId}\{customerId}.ini").IniReadValue("Contact", "Password");
+
+            var shootId = parts.First();
+            var incudeOriginals = true;
+            if (customerId == "Haine" && shootId.Substring(0, 2) == "20")
+            {
+               shootId = shootId.Substring(0, 4);
+               incudeOriginals = false;
+            }
+
+            var video = Directory.GetFiles($@"{ archiveFolder}\ForCustomer", "*.mp4").Where(f => f.ToLower().Contains("facebook") == false).ToList();
+            var original = incudeOriginals ? Directory.GetFiles($@"{archiveFolder}\ForCustomer\Original", "*.jpg").Where(f => f.ToLower().Contains("facebook") == false).ToList() : new List<string>();
+            var colour = Directory.GetFiles($@"{archiveFolder}\ForCustomer\Edits\colour", "*.jpg").Where(f => f.ToLower().Contains("facebook") == false).ToList();
+            var sepia = Directory.GetFiles($@"{archiveFolder}\ForCustomer\Edits\sepia", "*.jpg").Where(f => f.ToLower().Contains("facebook") == false).ToList();
+            var bandW = Directory.GetFiles($@"{archiveFolder}\ForCustomer\Edits\BandW", "*.jpg").Where(f => f.ToLower().Contains("facebook") == false).ToList();
+
+            ProcessImages(customerId, customerPassword, shootId, original, video, colour, sepia, bandW);
+         }
+      }
+
+      private static void UploadHaineArchives()
+      {
          Dictionary<string, (List<string> Colour, List<string> Sepia, List<string> BandW)> images = new Dictionary<string, (List<string> Colour, List<string> Sepia, List<string> BandW)>();
 
          var haineArchives = Directory.GetDirectories(@"\\vmwarehost\KHPArchive\KHP_ARCHIVE", "*_Haine", SearchOption.TopDirectoryOnly);
@@ -57,17 +110,6 @@
                ProcessImages("Haine", "Ha1ne99", year.Key, null, null, year.Value.Colour, year.Value.Sepia, year.Value.BandW);
             }
          }
-
-         //var fileList = Directory.GetFiles(@"E:\SampleImages", "*.jpg").ToList();
-         //if (!_oauthToken.Equals(OAuthToken.Invalid))
-         //{
-         //    ProcessImages("Haine", "Ha1ne99", "2020-07-24", fileList, fileList, fileList, fileList, fileList);
-         //}
-
-#if DEBUG
-         Console.WriteLine("Complete");
-         Console.ReadKey();
-#endif
       }
 
       private static void ProcessImages(
@@ -103,7 +145,7 @@
          var shootFolder = _uploader.GetSubNode(customerFolder, shootName, TypeEnum.Folder);
          var editsFolder = _uploader.GetSubNode(shootFolder, "Edits", TypeEnum.Folder);
 
-         _uploader.Upload(shootFolder, "Originals", originals);
+         _uploader.Upload(shootFolder, "Original", originals);
          _uploader.Upload(shootFolder, "Videos", videos);
          _uploader.Upload(editsFolder, "Colour", colours);
          _uploader.Upload(editsFolder, "Sepia", sepias);
