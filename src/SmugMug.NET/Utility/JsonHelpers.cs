@@ -6,6 +6,7 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Runtime.Serialization;
 
 namespace SmugMug.v2.Utility
@@ -67,14 +68,14 @@ namespace SmugMug.v2.Utility
             {
                 jsonWrite.WriteStartObject();
 
-                foreach (var property in properties)
+                foreach (var property in properties.Where(p => p.Value != null))
                 {
                     // we only want to include the property if it was part of a patch or post request
                     jsonWrite.WritePropertyName(property.Key);
 
                     if (!property.Value.GetType().IsArray)
-                    {                        
-                        jsonWrite.WriteValue( property.Value is Enum ? property.Value.ToString() :  property.Value);
+                    {
+                        jsonWrite.WriteValue(property.Value is Enum ? property.Value.ToString() : property.Value);
                         continue;
                     }
 

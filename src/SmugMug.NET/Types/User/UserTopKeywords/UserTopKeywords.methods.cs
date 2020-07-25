@@ -17,7 +17,7 @@ namespace SmugMug.v2.Types
         public UserTopKeywordsEntity(OAuthToken oauthToken)
             : base(oauthToken)
         {
-            _oauthToken = oauthToken;
+            Token = oauthToken;
         }
     }
 }

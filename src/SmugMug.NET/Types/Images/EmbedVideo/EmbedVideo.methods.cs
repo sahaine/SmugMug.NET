@@ -14,10 +14,8 @@ namespace SmugMug.v2.Types
             //Empty constructor to enable deserialization
         }
 
-        public EmbedVideoEntity(OAuthToken oauthToken)
-            : base(oauthToken)
+        public EmbedVideoEntity(OAuthToken oauthToken)  : base(oauthToken)
         {
-            _oauthToken = oauthToken;
         }
     }
 }

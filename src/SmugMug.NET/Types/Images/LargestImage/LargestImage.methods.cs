@@ -14,10 +14,8 @@ namespace SmugMug.v2.Types
             //Empty constructor to enable deserialization
         }
 
-        public LargestImageEntity(OAuthToken oauthToken)
-            : base(oauthToken)
+        public LargestImageEntity(OAuthToken oauthToken) : base(oauthToken)
         {
-            _oauthToken = oauthToken;
         }
     }
 }

@@ -14,10 +14,8 @@ namespace SmugMug.v2.Types
             //Empty constructor to enable deserialization
         }
 
-        public StatusImageCropEntity(OAuthToken oauthToken)
-            : base(oauthToken)
+        public StatusImageCropEntity(OAuthToken oauthToken) : base(oauthToken)
         {
-            _oauthToken = oauthToken;
         }
     }
 }

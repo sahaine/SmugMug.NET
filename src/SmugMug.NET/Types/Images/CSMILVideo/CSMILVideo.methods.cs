@@ -14,10 +14,8 @@ namespace SmugMug.v2.Types
             //Empty constructor to enable deserialization
         }
 
-        public CSMILVideoEntity(OAuthToken oauthToken)
-            : base(oauthToken)
+        public CSMILVideoEntity(OAuthToken oauthToken) : base(oauthToken)
         {
-            _oauthToken = oauthToken;
         }
     }
 }

@@ -14,10 +14,8 @@ namespace SmugMug.v2.Types
             //Empty constructor to enable deserialization
         }
 
-        public GrantEntity(OAuthToken oauthToken)
-            : base(oauthToken)
+        public GrantEntity(OAuthToken oauthToken) : base(oauthToken)
         {
-            _oauthToken = oauthToken;
         }
     }
 }

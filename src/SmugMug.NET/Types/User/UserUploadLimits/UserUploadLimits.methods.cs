@@ -17,7 +17,6 @@ namespace SmugMug.v2.Types
         public UserUploadLimitsEntity(OAuthToken oauthToken)
             : base(oauthToken)
         {
-            _oauthToken = oauthToken;
         }
     }
 }

@@ -15,10 +15,8 @@ namespace SmugMug.v2.Types
             //Empty constructor to enable deserialization
         }
 
-        public UserHideGuidesEntity(OAuthToken oauthToken)
-            : base(oauthToken)
+        public UserHideGuidesEntity(OAuthToken oauthToken) : base(oauthToken)
         {
-            _oauthToken = oauthToken;
         }
 
 

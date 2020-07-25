@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using SmugMug.v2.Authentication.Tokens;
+using SmugMugShared;
 using System;
 using System.Diagnostics;
 

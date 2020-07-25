@@ -77,7 +77,7 @@ namespace SmugMugCodeGen
 
                 if (!string.IsNullOrWhiteSpace(prop.Deprecated))
                 {
-                    propertyAccesors.AppendLine(string.Format(Constants.PropertyDefintionsObsolete, prop.Deprecated));
+                    propertyAccesors.AppendLine(string.Format(Constants.DefintionsObsolete, prop.Deprecated));
                 }
 
                 // if the property is part of the patch/post list, then it should be generated as keeping track of changes

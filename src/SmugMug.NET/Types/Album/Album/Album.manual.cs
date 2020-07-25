@@ -22,9 +22,9 @@ namespace SmugMug.v2.Types
         public async Task CreateAsync(string userNickName, string parentFolder)
         {
             // We get the modified properties and post them to the objects's uri
-            var patchPropertiesWithValues = GetModifedPropertiesValue(GetPatchPropertiesName());
+            var patchPropertiesWithValues = GetPropertiesValue(GetPatchPropertiesName());
 
-            await PostRequestAsync(Constants.Addresses.SmugMug + $"/api/v2/folder/user/{userNickName}/{parentFolder}!albums", JsonHelpers.GetPayloadAsJson(patchPropertiesWithValues));
+            await PostRequestAsync<AlbumEntity>(Constants.Addresses.SmugMug + $"/api/v2/folder/user/{userNickName}/{parentFolder}!albums", JsonHelpers.GetPayloadAsJson(patchPropertiesWithValues));
         }
 
         public async Task ApplyAlbumTemplateAsync(AlbumTemplateEntity template)
@@ -37,7 +37,7 @@ namespace SmugMug.v2.Types
             // /album/(*)!applyalbumtemplate 
             string requestUri = string.Format("{0}{1}!applyalbumtemplate", SmugMug.v2.Constants.Addresses.SmugMug, Uri);
 
-            await PostRequestAsync(requestUri, payload);
+            await PostRequestAsync<object>(requestUri, payload);
         }
 
         public async Task CollectImagesAsync(IEnumerable<ImageEntity> images)
@@ -53,7 +53,7 @@ namespace SmugMug.v2.Types
 
             var payload = JsonHelpers.GetPayloadAsJson(postProperties);
 
-            await PostRequestAsync(requestUri, payload);
+            await PostRequestAsync<object>(requestUri, payload);
         }
 
         public async Task<CommentEntity[]> GetCommentsAsync()
@@ -86,7 +86,7 @@ namespace SmugMug.v2.Types
 
             var payload = JsonHelpers.GetPayloadAsJson(postProperties);
 
-            await PostRequestAsync(requestUri, payload);
+            await PostRequestAsync<object>(requestUri, payload);
         }
 
         public async Task<DownloadEntity[]> GetDownloadAsync()
@@ -134,7 +134,7 @@ namespace SmugMug.v2.Types
 
             // /album/(*)!moveimages 
             string requestUri = string.Format("{0}{1}!moveimages", SmugMug.v2.Constants.Addresses.SmugMug, Uri);
-            await PostRequestAsync(requestUri, payload);
+            await PostRequestAsync<object>(requestUri, payload);
         }
 
         public async Task<ImageEntity[]> GetPopularMediaAsync()
@@ -210,7 +210,7 @@ namespace SmugMug.v2.Types
             // /album/(*)!uploadfromuri 
             string requestUri = string.Format("{0}{1}!uploadfromuri", SmugMug.v2.Constants.Addresses.SmugMug, Uri);
 
-            await PostRequestAsync(requestUri, payload);
+            await PostRequestAsync<object>(requestUri, payload);
         }
 
         public async Task<FolderEntity> GetFolderAsync()

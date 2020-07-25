@@ -15,10 +15,8 @@ namespace SmugMug.v2.Types
             //Empty constructor to enable deserialization
         }
 
-        public DownloadEntity(OAuthToken oauthToken)
-            : base(oauthToken)
+        public DownloadEntity(OAuthToken oauthToken) : base(oauthToken)
         {
-            _oauthToken = oauthToken;
         }
     }
 }

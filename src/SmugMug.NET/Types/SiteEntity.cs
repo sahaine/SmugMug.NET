@@ -8,9 +8,8 @@ namespace SmugMug.v2.Types
 {
     public class SiteEntity : SmugMugEntity
     {
-        public SiteEntity(OAuthToken token)
-        {
-            _oauthToken = token;
+        public SiteEntity(OAuthToken token) : base(token)
+        {            
         }
 
         public async Task<UserEntity> GetAuthenticatedUserAsync()

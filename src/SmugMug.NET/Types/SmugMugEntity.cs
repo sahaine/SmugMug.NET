@@ -10,10 +10,21 @@ namespace SmugMug.v2.Types
 {
     public partial class SmugMugEntity
     {
-        protected OAuthToken _oauthToken;
+        
         private string _uri;
         private string _uriDescription;
         private string _nodeId;
+
+        public SmugMugEntity()
+        {
+        }
+
+        public SmugMugEntity(OAuthToken token)
+        {
+            Token = token;
+        }
+
+        public OAuthToken Token { get; set; }
 
         public Dictionary<string, UriDescriptor> Uris { get; set; }
 
@@ -55,30 +66,21 @@ namespace SmugMug.v2.Types
 
         public virtual string PatchUri { get { return Uri; } }
 
-        public SmugMugEntity()
-        {
 
-        }
 
-        public SmugMugEntity(OAuthToken token)
-        {
-            _oauthToken = token;
-        }
 
         public async Task SaveAsync()
         {
             // We get the modified properties and post them to the objects's uri
-            var patchPropertiesWithValues = GetModifedPropertiesValue(GetPatchPropertiesName());
-
+            var patchPropertiesWithValues = GetPropertiesValue(GetPatchPropertiesName());
             await PatchRequestAsync(Constants.Addresses.SmugMug + AppendSuffixToUrl(this.PatchUri), JsonHelpers.GetPayloadAsJson(patchPropertiesWithValues));
         }
 
 
-        protected async Task CreateAsync(string uri, List<string> properties)
+        protected async Task<TResult> CreateAsync<TResult>(string uri)
         {
-            var patchPropertiesWithValues = GetPropertiesValue(properties);
-
-            await PostRequestAsync(uri, JsonHelpers.GetPayloadAsJson(patchPropertiesWithValues));
+            var postPropertiesWithValues = GetPropertiesValue(GetPostPropertiesName());
+            return await PostRequestAsync<TResult>(uri, JsonHelpers.GetPayloadAsJson(postPropertiesWithValues));
         }
 
         protected string AppendSuffixToUrl(string url)

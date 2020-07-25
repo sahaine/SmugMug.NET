@@ -54,7 +54,7 @@ namespace SmugMug.v2.Types
 
             // /image/(*)!crop 
             string requestUri = string.Format("{0}/image/{1}!color", SmugMug.v2.Constants.Addresses.SmugMugApi, ImageKey);
-            await PostRequestAsync(requestUri, payload);
+            await PostRequestAsync<object>(requestUri, payload);
         }
 
         public async Task<CommentEntity[]> GetCommentsAsync()
@@ -80,7 +80,7 @@ namespace SmugMug.v2.Types
 
             // /image/(*)!crop 
             string requestUri = string.Format("{0}/image/{1}!crop", SmugMug.v2.Constants.Addresses.SmugMugApi, ImageKey);
-            await PostRequestAsync(requestUri, payload);
+            await PostRequestAsync<object>(requestUri, payload);
         }
 
         public async Task<ImageDownloadEntity> GetDownloadAsync()
@@ -128,7 +128,7 @@ namespace SmugMug.v2.Types
 
             // /image/(*)!rotate 
             string requestUri = string.Format("{0}/image/{1}!rotate", SmugMug.v2.Constants.Addresses.SmugMugApi, ImageKey);
-            await PostRequestAsync(requestUri, payload);
+            await PostRequestAsync<object>(requestUri, payload);
         }
 
         public async Task ApplyWatermarkAsync(WatermarkEntity watermark)
@@ -140,7 +140,7 @@ namespace SmugMug.v2.Types
 
             // /image/(*)!watermark 
             string requestUri = string.Format("{0}/image/{1}!watermark", SmugMug.v2.Constants.Addresses.SmugMugApi, ImageKey);
-            await PostRequestAsync(requestUri, payload);
+            await PostRequestAsync<object>(requestUri, payload);
         }
 
         public async Task RemoveWatermarkAsync()
@@ -151,7 +151,7 @@ namespace SmugMug.v2.Types
 
             // /image/(*)!watermark 
             string requestUri = string.Format("{0}/image/{1}!watermark", SmugMug.v2.Constants.Addresses.SmugMugApi, ImageKey);
-            await PostRequestAsync(requestUri, payload);
+            await PostRequestAsync<object>(requestUri, payload);
         }
 
         public async Task<LargestImageEntity> GetLargestImageAsync()

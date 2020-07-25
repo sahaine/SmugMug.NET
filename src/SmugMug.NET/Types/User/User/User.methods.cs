@@ -17,7 +17,7 @@ namespace SmugMug.v2.Types
         public UserEntity(OAuthToken oauthToken)
             : base(oauthToken)
         {
-            _oauthToken = oauthToken;
+            Token = oauthToken;
         }
 
         private async Task<NodeEntity> CreateNodeEntity (string param1)

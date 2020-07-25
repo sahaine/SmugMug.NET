@@ -1,12 +1,8 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.27303.1
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30320.27
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SmugMugModelAsync", "SmugMugModelAsync\SmugMugModelAsync.csproj", "{C7020561-8E04-4D6A-8D46-28F31183ECBB}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SmugMugTest", "SmugMugTest\SmugMugTest.csproj", "{7F0008B0-AFC4-4DB2-B0D2-71F3071F4D78}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SmugMugTest.v2", "SmugMugTest.v2\SmugMugTest.v2.csproj", "{5F920D4B-3C84-4329-B539-DE884404EBC6}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SmugMugMetadataRetriever", "tools\SmugMugMetadataRetriever\SmugMugMetadataRetriever.csproj", "{24E408C7-79D6-41E6-B2DA-9E71A36EED13}"
@@ -29,7 +25,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "v2", "v2", "{84F2FB0F-216C-
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SmugMug.NET.Shared", "SmugMug.NET.Shared\SmugMug.NET.Shared.csproj", "{151DD076-6C45-449B-90F4-902307FA6DFC}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "v1", "v1", "{75D6CB53-38AA-4509-B4E2-8A3D45EB1867}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OAuth.net", "OAuth.Net\OAuth.net.csproj", "{3646A7FB-E8C6-4965-9EB9-EE9947B5DCEB}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -37,14 +33,6 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{C7020561-8E04-4D6A-8D46-28F31183ECBB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{C7020561-8E04-4D6A-8D46-28F31183ECBB}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{C7020561-8E04-4D6A-8D46-28F31183ECBB}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{C7020561-8E04-4D6A-8D46-28F31183ECBB}.Release|Any CPU.Build.0 = Release|Any CPU
-		{7F0008B0-AFC4-4DB2-B0D2-71F3071F4D78}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{7F0008B0-AFC4-4DB2-B0D2-71F3071F4D78}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{7F0008B0-AFC4-4DB2-B0D2-71F3071F4D78}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{7F0008B0-AFC4-4DB2-B0D2-71F3071F4D78}.Release|Any CPU.Build.0 = Release|Any CPU
 		{5F920D4B-3C84-4329-B539-DE884404EBC6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{5F920D4B-3C84-4329-B539-DE884404EBC6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5F920D4B-3C84-4329-B539-DE884404EBC6}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -65,12 +53,15 @@ Global
 		{151DD076-6C45-449B-90F4-902307FA6DFC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{151DD076-6C45-449B-90F4-902307FA6DFC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{151DD076-6C45-449B-90F4-902307FA6DFC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3646A7FB-E8C6-4965-9EB9-EE9947B5DCEB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3646A7FB-E8C6-4965-9EB9-EE9947B5DCEB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3646A7FB-E8C6-4965-9EB9-EE9947B5DCEB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3646A7FB-E8C6-4965-9EB9-EE9947B5DCEB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
-		{C7020561-8E04-4D6A-8D46-28F31183ECBB} = {75D6CB53-38AA-4509-B4E2-8A3D45EB1867}
 		{24E408C7-79D6-41E6-B2DA-9E71A36EED13} = {1D50F4B6-DCEC-441F-B33D-081DBEFF7A2F}
 		{FEF25999-C53A-44EA-BDCE-40DFD862AAE1} = {1D50F4B6-DCEC-441F-B33D-081DBEFF7A2F}
 		{A6EAD003-DBD4-4634-B5EB-BC0F29AAFFFE} = {1D50F4B6-DCEC-441F-B33D-081DBEFF7A2F}

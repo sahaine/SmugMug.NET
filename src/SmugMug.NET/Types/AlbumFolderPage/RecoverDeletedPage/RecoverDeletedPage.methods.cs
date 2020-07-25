@@ -15,10 +15,8 @@ namespace SmugMug.v2.Types
             //Empty constructor to enable deserialization
         }
 
-        public RecoverDeletedPageEntity(OAuthToken oauthToken)
-            : base(oauthToken)
+        public RecoverDeletedPageEntity(OAuthToken oauthToken) : base(oauthToken)
         {
-            _oauthToken = oauthToken;
         }
 
         protected override IEnumerable<string> GetPostPropertiesName()

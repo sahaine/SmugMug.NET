@@ -15,10 +15,8 @@ namespace SmugMug.v2.Types
             //Empty constructor to enable deserialization
         }
 
-        public ApplyAlbumTemplateEntity(OAuthToken oauthToken)
-            : base(oauthToken)
+        public ApplyAlbumTemplateEntity(OAuthToken oauthToken) : base(oauthToken)
         {
-            _oauthToken = oauthToken;
         }
 
 

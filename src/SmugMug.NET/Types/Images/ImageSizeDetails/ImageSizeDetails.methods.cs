@@ -14,10 +14,8 @@ namespace SmugMug.v2.Types
             //Empty constructor to enable deserialization
         }
 
-        public ImageSizeDetailsEntity(OAuthToken oauthToken)
-            : base(oauthToken)
+        public ImageSizeDetailsEntity(OAuthToken oauthToken) : base(oauthToken)
         {
-            _oauthToken = oauthToken;
         }
     }
 }

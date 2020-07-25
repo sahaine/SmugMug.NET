@@ -14,10 +14,8 @@ namespace SmugMug.v2.Types
             //Empty constructor to enable deserialization
         }
 
-        public CatalogSkuEntity(OAuthToken oauthToken)
-            : base(oauthToken)
+        public CatalogSkuEntity(OAuthToken oauthToken)       : base(oauthToken)
         {
-            _oauthToken = oauthToken;
         }
 
 

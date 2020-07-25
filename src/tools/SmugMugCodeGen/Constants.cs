@@ -9,7 +9,7 @@ namespace SmugMugCodeGen
     {
         public const string PropertyFieldDefinition = @"        private {0} {1};";
 
-        public const string PropertyDefintionsObsolete = @"
+        public const string DefintionsObsolete = @"
         [Obsolete(""{0}"")]";
 
         public const string PropertyDefinition = @"

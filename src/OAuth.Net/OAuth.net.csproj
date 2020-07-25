@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Import the NuSpec info about the package -->
+  <Import Project="..\pkg\nuspec.props" />
+  
+  <PropertyGroup>
+    <OutputType>library</OutputType>
+    <TargetFrameworks>netstandard1.3;netstandard2.0</TargetFrameworks>
+    <DebugType>full</DebugType>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="Exists('c:\Windows')">
+    <TargetFrameworks>$(TargetFrameworks);net45</TargetFrameworks>
+  </PropertyGroup>
+
+  <ItemGroup Condition="$(TargetFramework)=='net45'">
+    <Reference Include="System.Net" />
+    <Reference Include="System.Net.Http" />
+  </ItemGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <OutputPath>..\bin\Debug\</OutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <OutputPath>..\bin\Release\</OutputPath>
+  </PropertyGroup>
+</Project>

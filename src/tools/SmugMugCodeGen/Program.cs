@@ -98,7 +98,15 @@ namespace SmugMugCodeGen
                 Directory.CreateDirectory(objectDirName);
 
                 StringBuilder sb = new StringBuilder();
-                string classDefinition = GetClassDefinition(className, properties.ToString().TrimEnd(), string.Empty, string.Empty);
+
+                var obsoleteString = string.Empty;
+
+                if (!string.IsNullOrWhiteSpace(item.Value.Deprecated))
+                {
+                    obsoleteString = string.Format(Constants.DefintionsObsolete, item.Value.Deprecated);
+                }
+
+                string classDefinition = GetClassDefinition(className, properties.ToString().TrimEnd(), obsoleteString, string.Empty);
                 sb.Append(classDefinition);
                 File.WriteAllText(Path.Combine(objectDirName, item.Key + ".properties.cs"), sb.ToString());
 

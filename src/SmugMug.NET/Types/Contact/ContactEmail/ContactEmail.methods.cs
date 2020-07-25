@@ -14,10 +14,9 @@ namespace SmugMug.v2.Types
             //Empty constructor to enable deserialization
         }
 
-        public ContactEmailEntity(OAuthToken oauthToken)
-            : base(oauthToken)
+        public ContactEmailEntity(OAuthToken oauthToken) : base(oauthToken)
         {
-            _oauthToken = oauthToken;
+
         }
     }
 }

@@ -15,10 +15,8 @@ namespace SmugMug.v2.Types
             //Empty constructor to enable deserialization
         }
 
-        public AlbumTemplateEntity(OAuthToken oauthToken)
-            : base(oauthToken)
+        public AlbumTemplateEntity(OAuthToken oauthToken) : base(oauthToken)
         {
-            _oauthToken = oauthToken;
         }
 
         protected override IEnumerable<string> GetPostPropertiesName()

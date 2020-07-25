@@ -5,6 +5,7 @@ using System;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using SmugMug.v2.Authentication;
+using SmugMugShared;
 
 namespace SmugMug.v2.Types
 {
@@ -18,7 +19,7 @@ namespace SmugMug.v2.Types
         public NodeEntity(OAuthToken oauthToken)
             : base(oauthToken)
         {
-            _oauthToken = oauthToken;
+
         }
 
         protected override IEnumerable<string> GetPatchPropertiesName()

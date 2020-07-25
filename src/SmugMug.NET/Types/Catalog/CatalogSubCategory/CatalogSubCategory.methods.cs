@@ -14,12 +14,9 @@ namespace SmugMug.v2.Types
             //Empty constructor to enable deserialization
         }
 
-        public CatalogSubCategoryEntity(OAuthToken oauthToken)
-            : base(oauthToken)
+        public CatalogSubCategoryEntity(OAuthToken oauthToken) : base(oauthToken)
         {
-            _oauthToken = oauthToken;
         }
-
 
         private async Task<CatalogCategoryEntity> catalogcategory___ (string param1)
         {

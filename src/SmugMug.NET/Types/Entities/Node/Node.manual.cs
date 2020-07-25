@@ -81,6 +81,13 @@ namespace SmugMug.v2.Types
             return await RetrieveEntityArrayAsync<GrantEntity>(requestUri);
         }
 
+        public async Task CreateAsync(NodeEntity parent)
+        {
+            var result = await base.CreateAsync<NodeEntity>(string.Format("{0}/node/{1}!children", SmugMug.v2.Constants.Addresses.SmugMugApi, parent.NodeId));
+            this.NodeId = result.NodeId;
+            this.Uris = result.Uris; 
+        }
+
         public async Task MoveNodesAsync(IEnumerable<NodeEntity> nodes, bool asyncMove, bool autoRename = true)
         {
             var nodeUris = nodes.Select(node => node.Uri).ToArray();
@@ -92,7 +99,7 @@ namespace SmugMug.v2.Types
             var payload = JsonHelpers.GetPayloadAsJson(postProperties);
 
             string requestUri = string.Format("{0}/node/{1}!movenodes", SmugMug.v2.Constants.Addresses.SmugMugApi, NodeId);
-            await PostRequestAsync(requestUri, payload);
+            await PostRequestAsync<object>(requestUri, payload);
         }
 
         public async Task<NodeEntity> GetParentAsync()

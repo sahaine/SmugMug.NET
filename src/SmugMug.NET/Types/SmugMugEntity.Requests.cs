@@ -8,7 +8,6 @@ using SmugMug.v2.Authentication;
 using SmugMug.v2.Helpers;
 using SmugMug.v2.Utility;
 using System;
-using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -25,6 +24,8 @@ namespace SmugMug.v2.Types
             var result = await DeserializeRequestAsync<TResult>(oauthToken, requestUri);
             if (result.Item1 == null)
                 return null;
+
+            result.Item1.Token = oauthToken; 
 
             return result.Item1;
         }
@@ -57,7 +58,7 @@ namespace SmugMug.v2.Types
         protected async Task<TResult[]> RetrieveEntityArrayAsync<TResult>(string requestUri)
             where TResult : SmugMugEntity
         {
-            TResult[] result = await RetrieveEntityArrayAsync<TResult>(this._oauthToken, requestUri);
+            TResult[] result = await RetrieveEntityArrayAsync<TResult>(this.Token, requestUri);
 
             if (result == null)
                 return null;
@@ -65,7 +66,7 @@ namespace SmugMug.v2.Types
             // Let each object have the token
             foreach (var item in result)
             {
-                item._oauthToken = this._oauthToken;
+                item.Token = this.Token;
                 item.Parent = this;
             }
             return result;
@@ -74,24 +75,30 @@ namespace SmugMug.v2.Types
         protected async Task<TResult> RetrieveEntityAsync<TResult>(string requestUri)
             where TResult : SmugMugEntity
         {
-            TResult result = await RetrieveEntityAsync<TResult>(this._oauthToken, requestUri);
+            TResult result = await RetrieveEntityAsync<TResult>(this.Token, requestUri);
             if (result == null)
                 return null;
 
-            result._oauthToken = this._oauthToken;
+            result.Token = this.Token;
             result.Parent = this;
             return result;
         }
 
         private static async Task<Tuple<TResult, Pages>> DeserializeRequestAsync<TResult>(OAuthToken oauthToken, string requestUri)
         {
-            using (HttpClient httpClient = HttpClientHelpers.CreateHttpClient(oauthToken))
-            using (HttpResponseMessage response = await httpClient.GetAsync(requestUri))
-            using (StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync()))
-            using (JsonTextReader jsonTextReader = new JsonTextReader(streamReader))
-            {
-                JObject jsonObject = JObject.Load(jsonTextReader);
+            using (var httpClient = HttpClientHelpers.CreateHttpClient(oauthToken))
+            using (var response = await httpClient.GetAsync(requestUri))
+            using (var streamReader = new StreamReader(await response.Content.ReadAsStreamAsync()))
+                return ParseResponse<TResult>(response, streamReader);
+        }
 
+        private static Tuple<TResult, Pages> ParseResponse<TResult>(HttpResponseMessage response, StreamReader streamReader)
+        {
+            using (var jsonTextReader = new JsonTextReader(streamReader))
+            {
+                CheckResponse<TResult>(response, null);
+
+                JObject jsonObject = JObject.Load(jsonTextReader);
                 JToken objectResponse = JsonHelpers.GetDataOrDefault(jsonObject);
 
                 if (objectResponse == null)
@@ -109,7 +116,7 @@ namespace SmugMug.v2.Types
 
         private static TResult DeserializeObject<TResult>(JToken objectResponse)
         {
-            using (JsonReader reader = objectResponse.CreateReader())
+            using (var reader = objectResponse.CreateReader())
             {
                 JsonSerializerSettings settings = new JsonSerializerSettings();
                 settings.Converters = new List<JsonConverter>();
@@ -123,38 +130,51 @@ namespace SmugMug.v2.Types
 
         internal async Task GetRequestAsync(string requestUri)
         {
-            using (HttpClient httpClient = HttpClientHelpers.CreateHttpClient(_oauthToken))
-            using (HttpResponseMessage response = await httpClient.GetAsync(requestUri))
-            using (StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync()))
-            {
-                Debug.WriteLine(streamReader.ReadToEnd());
-
-            }
+            using (var httpClient = HttpClientHelpers.CreateHttpClient(Token))
+            using (var response = await httpClient.GetAsync(requestUri))
+            using (var streamReader = new StreamReader(await response.Content.ReadAsStreamAsync()))            
+                CheckResponse<Object>(response, streamReader);
+            
         }
 
-        internal async Task PostRequestAsync(string requestUri, string content)
+        internal async Task<TResult> PostRequestAsync<TResult>(string requestUri, string content)
         {
-            using (HttpClient httpClient = HttpClientHelpers.CreateHttpClient(_oauthToken))
-            using (HttpContent httpContent = new StringContent(content))
-            using (HttpResponseMessage response = await httpClient.PostAsync(requestUri, httpContent))
-            using (StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync()))
-            {
-                Debug.WriteLine(streamReader.ReadToEnd());
-            }
+            using (var httpClient = HttpClientHelpers.CreateHttpClient(Token))
+            using (var httpContent = new StringContent(content))
+            using (var response = await httpClient.PostAsync(requestUri, httpContent))
+            using (var streamReader = new StreamReader(await response.Content.ReadAsStreamAsync()))
+               return CheckResponse<TResult>(response, streamReader);
+            
         }
 
         internal async Task PatchRequestAsync(string requestUri, string content)
         {
-            using (HttpClient httpClient = HttpClientHelpers.CreateHttpClient(_oauthToken))
-            using (HttpContent httpContent = new StringContent(content))
-            using (HttpRequestMessage message = new HttpRequestMessage(new HttpMethod("PATCH"), requestUri))
+            using (var httpClient = HttpClientHelpers.CreateHttpClient(Token))
+            using (var httpContent = new StringContent(content))
+            using (var message = new HttpRequestMessage(new HttpMethod("PATCH"), requestUri))
             {
                 message.Content = httpContent;
-                using (HttpResponseMessage response = await httpClient.SendAsync(message))
-                using (StreamReader streamReader = new StreamReader(await response.Content.ReadAsStreamAsync()))
+                using (var response = await httpClient.SendAsync(message))
+                using (var streamReader = new StreamReader(await response.Content.ReadAsStreamAsync()))
+                    CheckResponse<object>(response, streamReader);
+            }
+        }
+
+        private static TResult CheckResponse<TResult>(HttpResponseMessage response, StreamReader responseBody)
+        {
+            if (response.IsSuccessStatusCode)
+            {
+                if (responseBody != null)
                 {
-                    Debug.WriteLine(streamReader.ReadToEnd());
+                    var data = ParseResponse<TResult>(response, responseBody);
+                    return data.Item1;
                 }
+                else
+                    return default;
+            }
+            else
+            {
+                throw new HttpRequestException($"{response.StatusCode}:{response.ReasonPhrase} {responseBody}");
             }
         }
     }

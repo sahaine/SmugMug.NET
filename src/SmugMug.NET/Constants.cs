@@ -8,6 +8,8 @@ namespace SmugMug.v2
         public const string RequestModifiers = @"?_pretty&_verbosity=3";
         public static class Addresses
         {
+            public const string SmugMugUpload = @"https://upload.smugmug.com/";
+
             public const string SmugMug = @"https://api.smugmug.com";
 
             public const string SmugMugApi = SmugMug + "/api/v2";

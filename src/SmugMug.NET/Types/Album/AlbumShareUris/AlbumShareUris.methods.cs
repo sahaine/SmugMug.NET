@@ -14,10 +14,8 @@ namespace SmugMug.v2.Types
             //Empty constructor to enable deserialization
         }
 
-        public AlbumShareUrisEntity(OAuthToken oauthToken)
-            : base(oauthToken)
+        public AlbumShareUrisEntity(OAuthToken oauthToken) : base(oauthToken)
         {
-            _oauthToken = oauthToken;
         }
     }
 }

@@ -72,7 +72,7 @@ namespace SmugMug.v2.Types
             }
         }
 
-        protected List<KeyValuePair<string, object>> GetModifedPropertiesValue(IEnumerable<string> allowedProperties)
+        protected List<KeyValuePair<string, object>> GetPropertiesValue(IEnumerable<string> allowedProperties)
         {
             List<KeyValuePair<string, object>> properties = new List<KeyValuePair<string, object>>();
 

@@ -6,13 +6,16 @@ using System.Runtime.Serialization;
 
 namespace SmugMug.v2.Types
 {
-    public enum TypeEnum 
+    public enum TypeEnum
     {
+        NotSet,
         Album,
         Page,
         Folder,
         All,
         [EnumMember(Value = "System Album")]
-        SystemAlbum
+        SystemAlbum,
+        [EnumMember(Value = "System Page")]
+        SystemPage
     }
 }
