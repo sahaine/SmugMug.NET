@@ -12,122 +12,135 @@ using SmugMug.v2.Types.Enums;
 
 namespace SmugMug.v2.Types
 {
-    public partial class NodeEntity : SmugMugEntity
-    {
-        public async Task<AlbumEntity> Considered_Fixup_album___()
-        {
-            // /album/(*) 
-            // return await album___(string.Empty);
+   public partial class NodeEntity : SmugMugEntity
+   {
+      private string _key;
+      public string Key
+      {
+         get
+         {
+            return _key ?? Name;
+         }
+         set
+         {
+            _key = value;
+         }
+      }
 
-            // /album/(*) 
-            string requestUri = string.Format("{0}/album/{1}", SmugMug.v2.Constants.Addresses.SmugMugApi, string.Empty);
+      public async Task<AlbumEntity> Considered_Fixup_album___()
+      {
+         // /album/(*) 
+         // return await album___(string.Empty);
 
-            return await RetrieveEntityAsync<AlbumEntity>(requestUri);
-        }
+         // /album/(*) 
+         string requestUri = string.Format("{0}/album/{1}", SmugMug.v2.Constants.Addresses.SmugMugApi, string.Empty);
 
-        [Obsolete]
-        public async Task<FolderEntity> AsFolderAsync()
-        {
-            // /folder/id/(*) 
-            //return await folderid___(NodeId);
-            // /folder/id/(*) 
-            string requestUri = string.Format("{0}/folder/id/{1}", SmugMug.v2.Constants.Addresses.SmugMugApi, NodeId);
+         return await RetrieveEntityAsync<AlbumEntity>(requestUri);
+      }
 
-            return await RetrieveEntityAsync<FolderEntity>(requestUri);
+      [Obsolete]
+      public async Task<FolderEntity> AsFolderAsync()
+      {
+         // /folder/id/(*) 
+         //return await folderid___(NodeId);
+         // /folder/id/(*) 
+         string requestUri = string.Format("{0}/folder/id/{1}", SmugMug.v2.Constants.Addresses.SmugMugApi, NodeId);
 
-        }
+         return await RetrieveEntityAsync<FolderEntity>(requestUri);
 
-        public async Task<ImageEntity> GetHighlightImageAsync()
-        {
-            // /highlight/node/(*) 
-            //return await highlightnode___(NodeId);
+      }
 
-            // /highlight/node/(*) 
-            string requestUri = string.Format("{0}/highlight/node/{1}", SmugMug.v2.Constants.Addresses.SmugMugApi, NodeId);
+      public async Task<ImageEntity> GetHighlightImageAsync()
+      {
+         // /highlight/node/(*) 
+         //return await highlightnode___(NodeId);
 
-            return await RetrieveEntityAsync<ImageEntity>(requestUri);
-        }
+         // /highlight/node/(*) 
+         string requestUri = string.Format("{0}/highlight/node/{1}", SmugMug.v2.Constants.Addresses.SmugMugApi, NodeId);
 
-        public async Task<NodeEntity[]> GetFoldersAsync() => await GetChildrenAsync(type: TypeEnum.Folder);
-        public async Task<NodeEntity[]> GetAlbumsAsync() => await GetChildrenAsync(type: TypeEnum.Album);
-        public async Task<NodeEntity[]> GetPagesAsync() => await GetChildrenAsync(type: TypeEnum.Page);
+         return await RetrieveEntityAsync<ImageEntity>(requestUri);
+      }
 
-        public async Task<NodeEntity[]> GetChildrenAsync(NodeSortMethodEnum sortMethod = NodeSortMethodEnum.Organizer, SortDirectionEnum sortDirection = SortDirectionEnum.Ascending, TypeEnum type = TypeEnum.All)
-        {
-            // /node/(*)!children 
-            //return await node____children(NodeId, $"SortDirection={sortDirection}&SortMethod={sortMethod}&Type={type}");
+      public async Task<NodeEntity[]> GetFoldersAsync() => await GetChildrenAsync(type: TypeEnum.Folder);
+      public async Task<NodeEntity[]> GetAlbumsAsync() => await GetChildrenAsync(type: TypeEnum.Album);
+      public async Task<NodeEntity[]> GetPagesAsync() => await GetChildrenAsync(type: TypeEnum.Page);
 
-            string options = $"SortDirection={sortDirection}&SortMethod={sortMethod}&Type={type}";
+      public async Task<NodeEntity[]> GetChildrenAsync(NodeSortMethodEnum sortMethod = NodeSortMethodEnum.Organizer, SortDirectionEnum sortDirection = SortDirectionEnum.Ascending, TypeEnum type = TypeEnum.All)
+      {
+         // /node/(*)!children 
+         //return await node____children(NodeId, $"SortDirection={sortDirection}&SortMethod={sortMethod}&Type={type}");
 
-            // /node/(*)!children 
-            string requestUri = string.Format("{0}/node/{1}!children{2}", SmugMug.v2.Constants.Addresses.SmugMugApi, NodeId, string.IsNullOrEmpty(options) ? "" : $"?{options}");
+         string options = $"SortDirection={sortDirection}&SortMethod={sortMethod}&Type={type}";
 
-            return await RetrieveEntityArrayAsync<NodeEntity>(requestUri);
-        }
+         // /node/(*)!children 
+         string requestUri = string.Format("{0}/node/{1}!children{2}", SmugMug.v2.Constants.Addresses.SmugMugApi, NodeId, string.IsNullOrEmpty(options) ? "" : $"?{options}");
 
-        public async Task<NodeEntity[]> GetChildrenAsync()
-        {
-            return await GetChildrenAsync(NodeSortMethodEnum.Organizer, SortDirectionEnum.Ascending, TypeEnum.All);
-        }
+         return await RetrieveEntityArrayAsync<NodeEntity>(requestUri);
+      }
 
-        public async Task<GrantEntity[]> GetGrantsAsync()
-        {
-            // /node/(*)!grants 
-            //return await node____grants(NodeId);
+      public async Task<NodeEntity[]> GetChildrenAsync()
+      {
+         return await GetChildrenAsync(NodeSortMethodEnum.Organizer, SortDirectionEnum.Ascending, TypeEnum.All);
+      }
 
-            // /node/(*)!grants 
-            string requestUri = string.Format("{0}/node/{1}!grants", SmugMug.v2.Constants.Addresses.SmugMugApi, NodeId);
+      public async Task<GrantEntity[]> GetGrantsAsync()
+      {
+         // /node/(*)!grants 
+         //return await node____grants(NodeId);
 
-            return await RetrieveEntityArrayAsync<GrantEntity>(requestUri);
-        }
+         // /node/(*)!grants 
+         string requestUri = string.Format("{0}/node/{1}!grants", SmugMug.v2.Constants.Addresses.SmugMugApi, NodeId);
 
-        public async Task CreateAsync(NodeEntity parent)
-        {
-            var result = await base.CreateAsync<NodeEntity>(string.Format("{0}/node/{1}!children", SmugMug.v2.Constants.Addresses.SmugMugApi, parent.NodeId));
-            this.NodeId = result.NodeId;
-            this.Uris = result.Uris; 
-        }
+         return await RetrieveEntityArrayAsync<GrantEntity>(requestUri);
+      }
 
-        public async Task MoveNodesAsync(IEnumerable<NodeEntity> nodes, bool asyncMove, bool autoRename = true)
-        {
-            var nodeUris = nodes.Select(node => node.Uri).ToArray();
-            var postProperties = new List<KeyValuePair<string, object>>();
-            postProperties.Add(new KeyValuePair<string, object>("Async", asyncMove));
-            postProperties.Add(new KeyValuePair<string, object>("AutoRename", autoRename));
-            postProperties.Add(new KeyValuePair<string, object>("MoveUris", nodeUris));
+      public async Task CreateAsync(NodeEntity parent)
+      {
+         var result = await base.CreateAsync<NodeEntity>(string.Format("{0}/node/{1}!children", SmugMug.v2.Constants.Addresses.SmugMugApi, parent.NodeId));
+         this.NodeId = result.NodeId;
+         this.Uris = result.Uris;
+      }
 
-            var payload = JsonHelpers.GetPayloadAsJson(postProperties);
+      public async Task MoveNodesAsync(IEnumerable<NodeEntity> nodes, bool asyncMove, bool autoRename = true)
+      {
+         var nodeUris = nodes.Select(node => node.Uri).ToArray();
+         var postProperties = new List<KeyValuePair<string, object>>();
+         postProperties.Add(new KeyValuePair<string, object>("Async", asyncMove));
+         postProperties.Add(new KeyValuePair<string, object>("AutoRename", autoRename));
+         postProperties.Add(new KeyValuePair<string, object>("MoveUris", nodeUris));
 
-            string requestUri = string.Format("{0}/node/{1}!movenodes", SmugMug.v2.Constants.Addresses.SmugMugApi, NodeId);
-            await PostRequestAsync<object>(requestUri, payload);
-        }
+         var payload = JsonHelpers.GetPayloadAsJson(postProperties);
 
-        public async Task<NodeEntity> GetParentAsync()
-        {
-            // /node/(*)!parent 
-            //return await node____parent(NodeId);
+         string requestUri = string.Format("{0}/node/{1}!movenodes", SmugMug.v2.Constants.Addresses.SmugMugApi, NodeId);
+         await PostRequestAsync<object>(requestUri, payload);
+      }
 
-            // /node/(*)!parent 
-            string requestUri = string.Format("{0}/node/{1}!parent", SmugMug.v2.Constants.Addresses.SmugMugApi, NodeId);
+      public async Task<NodeEntity> GetParentAsync()
+      {
+         // /node/(*)!parent 
+         //return await node____parent(NodeId);
 
-            return await RetrieveEntityAsync<NodeEntity>(requestUri);
-        }
+         // /node/(*)!parent 
+         string requestUri = string.Format("{0}/node/{1}!parent", SmugMug.v2.Constants.Addresses.SmugMugApi, NodeId);
 
-        public async Task<NodeEntity[]> GetParents()
-        {
-            // /node/(*)!parents 
-            //return await node____parents(NodeId);
+         return await RetrieveEntityAsync<NodeEntity>(requestUri);
+      }
 
-            // /node/(*)!parents 
-            string requestUri = string.Format("{0}/node/{1}!parents", SmugMug.v2.Constants.Addresses.SmugMugApi, NodeId);
+      public async Task<NodeEntity[]> GetParents()
+      {
+         // /node/(*)!parents 
+         //return await node____parents(NodeId);
 
-            return await RetrieveEntityArrayAsync<NodeEntity>(requestUri);
-        }
+         // /node/(*)!parents 
+         string requestUri = string.Format("{0}/node/{1}!parents", SmugMug.v2.Constants.Addresses.SmugMugApi, NodeId);
 
-        //public async Task<UserEntity> Fixup_user___()
-        //{
-        //    // /user/(*) 
-        //    return await user___(string.Empty);
-        //}
-    }
+         return await RetrieveEntityArrayAsync<NodeEntity>(requestUri);
+      }
+
+      //public async Task<UserEntity> Fixup_user___()
+      //{
+      //    // /user/(*) 
+      //    return await user___(string.Empty);
+      //}
+   }
 }
