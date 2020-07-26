@@ -36,15 +36,9 @@
 
             _uploader = new ImageUploader(_oauthToken);
 
+            ProcessImages("Wood", "2020-07-26");
             Upload2020Archives();
-
-            //var fileList = Directory.GetFiles(@"E:\SampleImages", "*.jpg").ToList();
-            //if (!_oauthToken.Equals(OAuthToken.Invalid))
-            //{
-            //    ProcessImages("Haine", "Ha1ne99", "2020-07-24", fileList, fileList, fileList, fileList, fileList);
-            //}
-
-
+            
          }
          catch (Exception e)
          {
@@ -58,6 +52,16 @@
 #endif
          }
 
+      }
+
+      private static void ProcessImages(string customerId, string shootId)
+      {
+         const string customerDataPath = @"\\khpserver\CustomerData";
+         const string websitePath = @"\\khpserver\WebSites\KHainePhotography.co.uk";
+
+         var shootData = new CustomerShootData(customerId, shootId, customerDataPath, websitePath);
+
+         _uploader.ProcessImages(customerId, shootData.CustomerData.UsersPassword, shootId, shootData.Originals(), shootData.Videos(), shootData.ColourEdits(), shootData.SepiaEdits(), shootData.BandWEdits());
       }
 
       private static void Upload2020Archives()
@@ -143,5 +147,98 @@
             }
          }
       }
+   }
+
+   public class CustomerData
+   {
+      readonly IniFile _customerDataIniFile;
+
+      public CustomerData(string customerId, string CustomerDataPath, string WebSitePath)
+      {
+         CustomerId = customerId;
+         Path = new DirectoryInfo(CustomerDataPath + "\\" + customerId);
+         if (!Path.Exists)
+         {
+            Path.Create();
+         }
+
+         WebPath = new DirectoryInfo(WebSitePath + "CustomerGallery\\" + CustomerId);
+         if (!WebPath.Exists)
+         {
+            WebPath.Create();
+         }
+
+         var oldFileName = CustomerDataPath + "\\" + customerId + ".ini";
+         var newFileName = CustomerDataPath + "\\" + customerId + "\\" + customerId + ".ini";
+
+         if (!File.Exists(newFileName) && File.Exists(oldFileName))
+            File.Move(oldFileName, newFileName);
+
+         _customerDataIniFile = new IniFile(newFileName);
+      }
+
+      public DirectoryInfo Path { get; }
+
+      public DirectoryInfo WebPath { get; }
+
+      public string CustomerId { get; }
+
+      public string UsersPassword
+      {
+         get { return _customerDataIniFile.IniReadValue("Contact", "Password"); }
+         set { _customerDataIniFile.IniWriteValue("Contact", "Password", value); }
+      }
+
+   }
+
+   public class CustomerShootData
+   {
+      public CustomerShootData(string customerId, string shootName, string customerDataPath, string websitePath)
+         : this(new CustomerData(customerId, customerDataPath, websitePath), shootName, customerDataPath, websitePath)
+      {
+      }
+
+      public CustomerShootData(CustomerData customerData, string shootName, string customerDataPath, string websitePath)
+      {
+         ShootName = shootName;
+         CustomerData = customerData;
+
+         ShootCustomerDataPath = new DirectoryInfo($@"{customerDataPath}\{customerData.CustomerId}\{shootName}");
+         ShootWebPath = new DirectoryInfo($@"{websitePath}\CustomerGallery\{customerData.CustomerId}\{shootName}");
+         ForCustomerPath = new DirectoryInfo($@"{ShootCustomerDataPath}\ForCustomer");
+         OriginalsPath = new DirectoryInfo($@"{ForCustomerPath}\Original");
+         EditsPath = new DirectoryInfo($@"{ForCustomerPath}\Edits");         
+      }
+
+      public List<string> BandWEdits()
+      {
+         return new DirectoryInfo($@"{EditsPath}\BandW").GetFiles("*.jpg").Select(f => f.FullName).ToList();
+      }
+      public List<string> SepiaEdits()
+      {
+         return new DirectoryInfo($@"{EditsPath}\Sepia").GetFiles("*.jpg").Select(f => f.FullName).ToList();
+      }
+      public List<string> ColourEdits()
+      {
+         return new DirectoryInfo($@"{EditsPath}\Colour").GetFiles("*.jpg").Select(f => f.FullName).ToList();
+      }
+      public List<string> Videos()
+      {
+         return ForCustomerPath.GetFiles("*.mp4").Select(f => f.FullName).ToList();
+      }
+      public List<string> Originals()
+      {
+         return OriginalsPath.GetFiles("*.jpg").Select(f => f.FullName).ToList();
+      }
+
+      public CustomerData CustomerData { get; }      
+      public DirectoryInfo ShootWebPath { get; }
+      public DirectoryInfo ShootCustomerDataPath { get; }
+      private DirectoryInfo ForCustomerPath { get; }
+      private DirectoryInfo EditsPath { get; }
+      private DirectoryInfo OriginalsPath { get; }
+
+      public string ShootName { get; }
+
    }
 }

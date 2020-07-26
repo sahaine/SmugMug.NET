@@ -751,6 +751,8 @@
 
                AddUploadHeaders(client, albumUri);
 
+               var count = 0;
+
                foreach (var file in files)
                {
                   try
@@ -769,7 +771,7 @@
 
                      var tokenSource = new CancellationTokenSource();
 
-                     ConsolePrinter.Write(ConsoleColor.Cyan, $"Uploading {fileItem.Name} size:{sizeInKb}kb timeout:{timeout}");
+                     ConsolePrinter.Write(ConsoleColor.Cyan, $"Uploading {fileItem.Name} size:{sizeInKb}kb timeout:{timeout} {files.Count() - count} still to process");
 
                      var md5CheckSum = GetCheckSum(file);
 
@@ -779,19 +781,16 @@
 
                         (ConsoleColor, string) consoleResult;
 
-                        //using (var consoleSpimmer = new ConsoleSpinner())
-                        //{
-                           var resp = client.PostAsync(Constants.Addresses.SmugMugUpload, fileContent, tokenSource.Token);
-                           if (resp.Wait(timeout))
-                           {
-                              consoleResult = ParseReponse(resp.Result);
-                           }
-                           else
-                           {
-                              consoleResult = (ConsoleColor.Red, "Timeout");
-                              tokenSource.Cancel();
-                           }
-                        //}
+                        var resp = client.PostAsync(Constants.Addresses.SmugMugUpload, fileContent, tokenSource.Token);
+                        if (resp.Wait(timeout))
+                        {
+                           consoleResult = ParseReponse(resp.Result);
+                        }
+                        else
+                        {
+                           consoleResult = (ConsoleColor.Red, "Timeout");
+                           tokenSource.Cancel();
+                        }
 
                         ConsolePrinter.Write(consoleResult);
                      }
@@ -800,6 +799,11 @@
                   {
                      ConsolePrinter.Write(ConsoleColor.Red, e.ToString());
                   }
+                  finally
+                  {
+                     count++;
+                  }
+
                }
             }
          }
@@ -892,13 +896,13 @@
 
             case DownloadState.PendingResponse:
                _stopwatch.Stop();
-               Console.WriteLine("");  
+               Console.WriteLine("");
                ConsolePrinter.Write(ConsoleColor.White, $"Took {_stopwatch.Elapsed}");
                break;
          }
       }
 
-      Stopwatch _stopwatch = new Stopwatch(); 
+      Stopwatch _stopwatch = new Stopwatch();
       int _prevProgress = -1;
       public double PercentComplete
       {
@@ -907,7 +911,7 @@
             var progress = (int)(value * 100);
             if (_prevProgress == progress)
                return;
-            
+
             ConsolePrinter.WriteProgressBar(progress, true);
             _prevProgress = progress;
          }
