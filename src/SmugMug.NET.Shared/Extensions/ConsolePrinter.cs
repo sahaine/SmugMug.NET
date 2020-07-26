@@ -17,19 +17,19 @@ namespace SmugMugShared.Extensions
       {
          var curColor = Console.ForegroundColor;
          Console.ForegroundColor = color;
-
          Console.WriteLine($"{DateTime.Now:HH:mm:ss} {message}", args);
-
          Console.ForegroundColor = curColor;
       }
 
       const char _block = '■';
       const string _back = "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b";
       const string _twirl = "-\\|/";
+
       public static void WriteProgressBar(int percent, bool update = false)
       {
          if (update)
             Console.Write(_back);
+
          Console.Write("[");
          var p = (int)((percent / 10f) + .5f);
          for (var i = 0; i < 10; ++i)
@@ -48,7 +48,6 @@ namespace SmugMugShared.Extensions
             Console.Write("\b");
          Console.Write(_twirl[progress % _twirl.Length]);
       }
-
    }
 
    public class ConsoleSpinner : IDisposable

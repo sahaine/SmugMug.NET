@@ -28,6 +28,7 @@
 
       static void Main(string[] args)
       {
+         Console.CursorVisible = false;
          try
          {
 

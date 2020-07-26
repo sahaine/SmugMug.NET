@@ -5,10 +5,12 @@
    using System.Diagnostics;
    using System.IO;
    using System.Linq;
+   using System.Net;
    using System.Net.Http;
    using System.Net.Http.Headers;
    using System.Security.Cryptography;
    using System.Threading;
+   using System.Threading.Tasks;
    using System.Web;
    using Newtonsoft.Json;
    using SmugMug.v2;
@@ -16,307 +18,14 @@
    using SmugMug.v2.Types;
    using SmugMugShared.Extensions;
 
-   public class ImageUploader
+   public class ImageUploader : IUploader
    {
       private OAuthToken _oauthToken;
 
       private static readonly Dictionary<string, NodeEntity> _cache = new Dictionary<string, NodeEntity>();
 
-      public ImageUploader(OAuthToken token)
-      {
-         _oauthToken = token;
-      }
-
-      public NodeEntity GetRoot()
-      {
-         var site = new SiteEntity(_oauthToken);
-         var user = site.GetAuthenticatedUserAsync().Result;
-         return user.GetRootNodeAsync().Result;
-      }
-
-      public NodeEntity GetSubNode(NodeEntity parentFolder, string subFolderName, TypeEnum nodeType, string subFolderPassword = "NONE")
-      {
-         var key = $"{parentFolder.Key}.{subFolderName}";
-
-         if (_cache.ContainsKey(key))
-         {
-            ConsolePrinter.Write(ConsoleColor.Green, $"Loaded {nodeType} : {subFolderName} (cached)");
-            return _cache[key];
-         }
-
-         var subFolder = parentFolder.GetChildrenAsync(type: nodeType).Result?.FirstOrDefault(f => f.Name == subFolderName);
-
-         if (subFolder != null)
-         {
-            subFolder.Key = key;
-            _cache.Add(key, subFolder);
-            ConsolePrinter.Write(ConsoleColor.Green, $"Loaded {nodeType} : {subFolderName}");
-            return subFolder;
-         }
-
-         ConsolePrinter.Write(ConsoleColor.DarkYellow, $"Creating {nodeType} : {subFolderName}");
-
-         if (string.IsNullOrEmpty(subFolderPassword))
-         {
-            ConsolePrinter.Write(ConsoleColor.Red, $"Customer Password not specfied!");
-            return null;
-         }
-
-         //we need to create it
-         subFolder = new NodeEntity(_oauthToken)
-         {
-            Type = nodeType,
-            Description = subFolderName,
-            Name = subFolderName,
-            UrlName = subFolderName,
-            Keywords = new[] { subFolderName },
-            Parent = parentFolder,
-            Privacy = subFolderPassword == "NONE" ? PrivacyEnum.Public : PrivacyEnum.Unlisted,
-            SecurityType = subFolderPassword == "NONE" ? SecurityTypeEnum.None : SecurityTypeEnum.Password,
-            Password = subFolderPassword == "NONE" ? null : subFolderPassword,
-            PasswordHint = subFolderPassword == "NONE" ? null : "It's on your sales reciept",
-            Key = key
-         };
-
-         subFolder.CreateAsync(parentFolder).Wait();
-
-         _cache.Add(key, subFolder);
-
-         return subFolder;
-
-      }
-
-      public void ProcessImages(string customerId, string usersPassword, string shootName, object originals, object videos, object colourEdits, object sepiaEdits, object bandWEdits)
-      {
-         throw new NotImplementedException();
-      }
-
-      public string ProcessImages(
-         string customerName,
-         string customerPassword,
-         string shootName,
-         List<string> originals,
-         List<string> videos,
-         List<string> colours,
-         List<string> sepias,
-         List<string> bandWs)
-      {
-         if (string.IsNullOrWhiteSpace(customerName))
-         {
-            ConsolePrinter.Write(ConsoleColor.Red, $"Customer Name not specfied!");
-            return null;
-         }
-
-         if (string.IsNullOrWhiteSpace(shootName))
-         {
-            ConsolePrinter.Write(ConsoleColor.Red, $"Shoot Name not specfied!");
-            return null;
-         }
-
-         var customersFolder = GetRoot().GetChildrenAsync(type: TypeEnum.Folder).Result.Single(f => f.Name == "Customers");
-         var customerFolder = GetSubNode(customersFolder, customerName, TypeEnum.Folder, customerPassword);
-
-         if (customerFolder == null)
-         {
-            ConsolePrinter.Write(ConsoleColor.Red, $"No Customer Folder - Noting we can do!");
-            return null;
-         }
-
-         var shootFolder = GetSubNode(customerFolder, shootName, TypeEnum.Folder);
-         var editsFolder = GetSubNode(shootFolder, "Edits", TypeEnum.Folder);
-
-         Upload(shootFolder, "Original", originals);
-         Upload(shootFolder, "Video", videos);
-         Upload(editsFolder, "Colour", colours);
-         Upload(editsFolder, "Sepia", sepias);
-         Upload(editsFolder, "BandW", bandWs);
-
-         var folderUri = customersFolder.Uris.Single(uri => uri.Key == "FolderByID").Value.Uri;
-         var folder = FolderEntity.RetrieveEntityAsync<FolderEntity>(_oauthToken, $"{Constants.Addresses.SmugMugApi}{folderUri}").Result;
-
-         return folder.WebUri;
-      }
-
-      public void Upload(NodeEntity parentFolder, string albumName, List<string> files)
-      {
-         if (files?.Any() != true)
-         {
-            return;
-         }
-
-         ConsolePrinter.Write(ConsoleColor.White, $"Uploading {files.Count()} images to {albumName}.");
-
-         try
-         {
-            var albumNode = GetSubNode(parentFolder, albumName, TypeEnum.Album);
-
-            var albumUri = albumNode.Uris.Single(uri => uri.Key == "Album").Value.Uri;
-            var album = AlbumEntity.RetrieveEntityAsync<AlbumEntity>(_oauthToken, $"{Constants.Addresses.SmugMugApi}{albumUri}").Result;
-
-            if (albumName == "Original" && album.CanBuy)
-            {
-               album.CanBuy = false;
-               album.SaveAsync().Wait();
-            }
-
-            var processedItems = album.GetImagesAsync().Result?.Select(i => i.FileName).ToList();
-
-            var processedFiles = processedItems?.Count ?? 0;
-
-            if (processedFiles == files.Count())
-            {
-               ConsolePrinter.Write(ConsoleColor.White, "No folder upload action required!");
-               return;
-            }
-
-            ConsolePrinter.Write(ConsoleColor.White, $"{processedFiles} complete, {files.Count() - processedFiles} still tp upload.");
-
-            OAuth.OAuthMessageHandler oAuthhandler = new OAuth.OAuthMessageHandler(
-               _oauthToken.ApiKey,
-               _oauthToken.Secret,
-               _oauthToken.Token,
-               _oauthToken.TokenSecret);
-
-            using (var client = new HttpClient(oAuthhandler))
-            //using (var client = new HttpClient())
-            {
-               client.Timeout = TimeSpan.FromDays(1);
-               client.DefaultRequestHeaders.Accept.Clear();
-               client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
-               AddUploadHeaders(client, albumUri);
-
-               foreach (var file in files)
-               {
-                  try
-                  {
-                     var name = Path.GetFileNameWithoutExtension(file);
-
-                     if (processedItems != null && processedItems.Any(i => i.StartsWith(name,  StringComparison.OrdinalIgnoreCase) || name.StartsWith(i, StringComparison.OrdinalIgnoreCase)))
-                     {
-                        ConsolePrinter.Write(ConsoleColor.Yellow, $"Skipping {name} it's already there!");
-                        continue;
-                     }
-
-                     var fileItem = new FileInfo(file);
-                     var sizeInKb = (int)(fileItem.Length / 1024);
-                     var timeout = TimeSpan.FromSeconds((sizeInKb / 100) + 20); //100kb a second is reasonalble + 10 secs for call initalisation)
-
-                     var tokenSource = new CancellationTokenSource();
-
-                     ConsolePrinter.Write(ConsoleColor.Cyan, $"Uploading {fileItem.Name} size:{sizeInKb}kb timeout:{timeout}");
-
-                     var md5CheckSum = GetCheckSum(file);
-
-                     using (var fileContent = new StreamContent(fileItem.OpenRead(), 1024 * 32))
-                     {
-                        AddUploadHeaders(fileContent.Headers, fileItem, name, md5CheckSum);
-
-                        (ConsoleColor, string) consoleResult;
-
-                        using (var consoleSpimmer = new ConsoleSpinner())
-                        {
-                           var resp = client.PostAsync(Constants.Addresses.SmugMugUpload, fileContent, tokenSource.Token);
-                           if (resp.Wait(timeout))
-                           {
-                              consoleResult = ParseReponse(resp.Result);
-                           }
-                           else
-                           {
-                              consoleResult = (ConsoleColor.Red, "Timeout");
-                              tokenSource.Cancel();
-                           }
-                        }
-
-                        ConsolePrinter.Write(consoleResult);
-                     }
-                  }
-                  catch (Exception e)
-                  {
-                     ConsolePrinter.Write(ConsoleColor.Red, e.ToString());
-                  }
-               }
-            }
-         }
-         catch (Exception e)
-         {
-            ConsolePrinter.Write(ConsoleColor.Red, e.ToString());
-         }
-      }
-
-      private (ConsoleColor, string) ParseReponse(HttpResponseMessage result)
-      {
-         var resp = result.Content.ReadAsStringAsync();
-         resp.Wait();
-
-         var response = JsonConvert.DeserializeObject<UploadReponse>(Uri.UnescapeDataString(resp.Result));
-         if (response.stat != "ok")
-         {
-            Debug.WriteLine(resp.Result);
-            throw new HttpRequestException($"{response.message} : {response.code}");
-         }
-
-         return (result.IsSuccessStatusCode ? ConsoleColor.Green : ConsoleColor.Red, result.StatusCode.ToString());
-      }
-
-      private string GetCheckSum(string file)
-      {
-         using (var md5 = MD5.Create())
-         {
-            using (var stream = File.OpenRead(file))
-            {
-               var hash = md5.ComputeHash(stream);
-               return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
-            }
-         }
-      }
-
-      private void AddUploadHeaders(HttpClient client, string albumUri)
-      {
-         client.DefaultRequestHeaders.Add("User-Agent", "KHainePhotography_PhotoStudioManager_v1.0");
-
-         client.DefaultRequestHeaders.Add("X-Smug-AlbumUri", albumUri);
-         client.DefaultRequestHeaders.Add("X-Smug-ResponseType", "JSON");
-         client.DefaultRequestHeaders.Add("X-Smug-Version", "v2");
-
-         client.DefaultRequestHeaders.Add("X-Smug-Latitude", "53.457920");
-         client.DefaultRequestHeaders.Add("X-Smug-Longitude", "-1.464252");
-         client.DefaultRequestHeaders.Add("X-Smug-Altitude", "86");
-
-         client.DefaultRequestHeaders.Add("X-Smug-Pretty", "true");
-         client.DefaultRequestHeaders.Add("X-Smug-Hidden", "false");
-      }
-
-      private void AddUploadHeaders(HttpContentHeaders headers, FileInfo file, string name, string md5Checksum)
-      {
-         headers.Add("Content-MD5", md5Checksum);
-         headers.Add("Content-Length", file.Length.ToString());
-         headers.ContentType = MediaTypeHeaderValue.Parse(GetMimeType(file.Extension));
-
-         headers.Add("X-Smug-FileName", name);
-         headers.Add("X-Smug-Title", name);
-         headers.Add("X-Smug-Caption", name);
-      }
-
-      public class UploadReponse
-      {
-         public string stat { get; set; }
-         public string method { get; set; }
-         public string code { get; set; }
-         public string message { get; set; }
-         public ImageUploadData Image { get; set; }
-         public class ImageUploadData
-         {
-            public string ImageUri { get; set; }
-            public string AlbumImageUri { get; set; }
-            public string StatusImageReplaceUri { get; set; }
-            public string URL { get; set; }
-         }
-      }
-
       private static IDictionary<string, string> _mappings = new Dictionary<string, string>() {
-
-        #region Big freaking list of mime types
+         #region Big freaking list of mime types
         // combination of values from Windows 7 Registry and 
         // from C:\Windows\System32\inetsrv\config\applicationHost.config
         // some added, including .7z and .dat
@@ -880,9 +589,279 @@
         {".xwd", "image/x-xwindowdump"},
         {".z", "application/x-compress"},
         {".zip", "application/x-zip-compressed"},
-        #endregion
-        
+        #endregion        
       };
+
+      public ImageUploader(OAuthToken token)
+      {
+         _oauthToken = token;
+      }
+
+      public NodeEntity GetRoot()
+      {
+         var site = new SiteEntity(_oauthToken);
+         var user = site.GetAuthenticatedUserAsync().Result;
+         return user.GetRootNodeAsync().Result;
+      }
+
+      public NodeEntity GetSubNode(NodeEntity parentFolder, string subFolderName, TypeEnum nodeType, string subFolderPassword = "NONE")
+      {
+         var key = $"{parentFolder.Key}.{subFolderName}";
+
+         if (_cache.ContainsKey(key))
+         {
+            ConsolePrinter.Write(ConsoleColor.Green, $"Loaded {nodeType} : {subFolderName} (cached)");
+            return _cache[key];
+         }
+
+         var subFolder = parentFolder.GetChildrenAsync(type: nodeType).Result?.FirstOrDefault(f => f.Name == subFolderName);
+
+         if (subFolder != null)
+         {
+            subFolder.Key = key;
+            _cache.Add(key, subFolder);
+            ConsolePrinter.Write(ConsoleColor.Green, $"Loaded {nodeType} : {subFolderName}");
+            return subFolder;
+         }
+
+         ConsolePrinter.Write(ConsoleColor.DarkYellow, $"Creating {nodeType} : {subFolderName}");
+
+         if (string.IsNullOrEmpty(subFolderPassword))
+         {
+            ConsolePrinter.Write(ConsoleColor.Red, $"Customer Password not specfied!");
+            return null;
+         }
+
+         //we need to create it
+         subFolder = new NodeEntity(_oauthToken)
+         {
+            Type = nodeType,
+            Description = subFolderName,
+            Name = subFolderName,
+            UrlName = subFolderName,
+            Keywords = new[] { subFolderName },
+            Parent = parentFolder,
+            Privacy = subFolderPassword == "NONE" ? PrivacyEnum.Public : PrivacyEnum.Unlisted,
+            SecurityType = subFolderPassword == "NONE" ? SecurityTypeEnum.None : SecurityTypeEnum.Password,
+            Password = subFolderPassword == "NONE" ? null : subFolderPassword,
+            PasswordHint = subFolderPassword == "NONE" ? null : "It's on your sales reciept",
+            Key = key
+         };
+
+         subFolder.CreateAsync(parentFolder).Wait();
+
+         _cache.Add(key, subFolder);
+
+         return subFolder;
+
+      }
+
+      public string ProcessImages(
+         string customerName,
+         string customerPassword,
+         string shootName,
+         List<string> originals,
+         List<string> videos,
+         List<string> colours,
+         List<string> sepias,
+         List<string> bandWs)
+      {
+         if (string.IsNullOrWhiteSpace(customerName))
+         {
+            ConsolePrinter.Write(ConsoleColor.Red, $"Customer Name not specfied!");
+            return null;
+         }
+
+         if (string.IsNullOrWhiteSpace(shootName))
+         {
+            ConsolePrinter.Write(ConsoleColor.Red, $"Shoot Name not specfied!");
+            return null;
+         }
+
+         var customersFolder = GetRoot().GetChildrenAsync(type: TypeEnum.Folder).Result.Single(f => f.Name == "Customers");
+         var customerFolder = GetSubNode(customersFolder, customerName, TypeEnum.Folder, customerPassword);
+
+         if (customerFolder == null)
+         {
+            ConsolePrinter.Write(ConsoleColor.Red, $"No Customer Folder - Noting we can do!");
+            return null;
+         }
+
+         var shootFolder = GetSubNode(customerFolder, shootName, TypeEnum.Folder);
+         var editsFolder = GetSubNode(shootFolder, "Edits", TypeEnum.Folder);
+
+         Upload(shootFolder, "Original", originals);
+         Upload(shootFolder, "Video", videos);
+         Upload(editsFolder, "Colour", colours);
+         Upload(editsFolder, "Sepia", sepias);
+         Upload(editsFolder, "BandW", bandWs);
+
+         var folderUri = customersFolder.Uris.Single(uri => uri.Key == "FolderByID").Value.Uri;
+         var folder = FolderEntity.RetrieveEntityAsync<FolderEntity>(_oauthToken, $"{Constants.Addresses.SmugMugApi}{folderUri}").Result;
+
+         return folder.WebUri;
+      }
+
+      public void Upload(NodeEntity parentFolder, string albumName, List<string> files)
+      {
+         if (files?.Any() != true)
+         {
+            return;
+         }
+
+         ConsolePrinter.Write(ConsoleColor.White, $"Uploading {files.Count()} images to {albumName}.");
+
+         try
+         {
+            var albumNode = GetSubNode(parentFolder, albumName, TypeEnum.Album);
+
+            var albumUri = albumNode.Uris.Single(uri => uri.Key == "Album").Value.Uri;
+            var album = AlbumEntity.RetrieveEntityAsync<AlbumEntity>(_oauthToken, $"{Constants.Addresses.SmugMugApi}{albumUri}").Result;
+
+            if (albumName == "Original" && album.CanBuy)
+            {
+               album.CanBuy = false;
+               album.SaveAsync().Wait();
+            }
+
+            var processedItems = album.GetImagesAsync().Result?.Select(i => i.FileName).ToList();
+
+            var processedFiles = processedItems?.Count ?? 0;
+
+            if (processedFiles == files.Count())
+            {
+               ConsolePrinter.Write(ConsoleColor.White, "No folder upload action required!");
+               return;
+            }
+
+            ConsolePrinter.Write(ConsoleColor.White, $"{processedFiles} complete, {files.Count() - processedFiles} still tp upload.");
+
+            OAuth.OAuthMessageHandler oAuthhandler = new OAuth.OAuthMessageHandler(
+               _oauthToken.ApiKey,
+               _oauthToken.Secret,
+               _oauthToken.Token,
+               _oauthToken.TokenSecret);
+
+            using (var client = new HttpClient(oAuthhandler))
+            //using (var client = new HttpClient())
+            {
+               client.Timeout = TimeSpan.FromDays(1);
+               client.DefaultRequestHeaders.Accept.Clear();
+               client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+               AddUploadHeaders(client, albumUri);
+
+               foreach (var file in files)
+               {
+                  try
+                  {
+                     var name = Path.GetFileNameWithoutExtension(file);
+
+                     if (processedItems != null && processedItems.Any(i => i.StartsWith(name, StringComparison.OrdinalIgnoreCase) || name.StartsWith(i, StringComparison.OrdinalIgnoreCase)))
+                     {
+                        ConsolePrinter.Write(ConsoleColor.Yellow, $"Skipping {name} it's already there!");
+                        continue;
+                     }
+
+                     var fileItem = new FileInfo(file);
+                     var sizeInKb = (int)(fileItem.Length / 1024);
+                     var timeout = TimeSpan.FromSeconds((sizeInKb / 100) + 60); //100kb a second is reasonalble + 60 secs to handle when things are sloooooow...)
+
+                     var tokenSource = new CancellationTokenSource();
+
+                     ConsolePrinter.Write(ConsoleColor.Cyan, $"Uploading {fileItem.Name} size:{sizeInKb}kb timeout:{timeout}");
+
+                     var md5CheckSum = GetCheckSum(file);
+
+                     using (var fileContent = new ProgressableStreamContent(this, fileItem.OpenRead(), 1024 * 32))
+                     {
+                        AddUploadHeaders(fileContent.Headers, fileItem, name, md5CheckSum);
+
+                        (ConsoleColor, string) consoleResult;
+
+                        //using (var consoleSpimmer = new ConsoleSpinner())
+                        //{
+                           var resp = client.PostAsync(Constants.Addresses.SmugMugUpload, fileContent, tokenSource.Token);
+                           if (resp.Wait(timeout))
+                           {
+                              consoleResult = ParseReponse(resp.Result);
+                           }
+                           else
+                           {
+                              consoleResult = (ConsoleColor.Red, "Timeout");
+                              tokenSource.Cancel();
+                           }
+                        //}
+
+                        ConsolePrinter.Write(consoleResult);
+                     }
+                  }
+                  catch (Exception e)
+                  {
+                     ConsolePrinter.Write(ConsoleColor.Red, e.ToString());
+                  }
+               }
+            }
+         }
+         catch (Exception e)
+         {
+            ConsolePrinter.Write(ConsoleColor.Red, e.ToString());
+         }
+      }
+
+      private (ConsoleColor, string) ParseReponse(HttpResponseMessage result)
+      {
+         var resp = result.Content.ReadAsStringAsync();
+         resp.Wait();
+
+         var response = JsonConvert.DeserializeObject<UploadReponse>(Uri.UnescapeDataString(resp.Result));
+         if (response.stat != "ok")
+         {
+            Debug.WriteLine(resp.Result);
+            throw new HttpRequestException($"{response.message} : {response.code}");
+         }
+
+         return (result.IsSuccessStatusCode ? ConsoleColor.Green : ConsoleColor.Red, result.StatusCode.ToString());
+      }
+
+      private string GetCheckSum(string file)
+      {
+         using (var md5 = MD5.Create())
+         {
+            using (var stream = File.OpenRead(file))
+            {
+               var hash = md5.ComputeHash(stream);
+               return BitConverter.ToString(hash).Replace("-", "").ToLowerInvariant();
+            }
+         }
+      }
+
+      private void AddUploadHeaders(HttpClient client, string albumUri)
+      {
+         client.DefaultRequestHeaders.Add("User-Agent", "KHainePhotography_PhotoStudioManager_v1.0");
+
+         client.DefaultRequestHeaders.Add("X-Smug-AlbumUri", albumUri);
+         client.DefaultRequestHeaders.Add("X-Smug-ResponseType", "JSON");
+         client.DefaultRequestHeaders.Add("X-Smug-Version", "v2");
+
+         client.DefaultRequestHeaders.Add("X-Smug-Latitude", "53.457920");
+         client.DefaultRequestHeaders.Add("X-Smug-Longitude", "-1.464252");
+         client.DefaultRequestHeaders.Add("X-Smug-Altitude", "86");
+
+         client.DefaultRequestHeaders.Add("X-Smug-Pretty", "true");
+         client.DefaultRequestHeaders.Add("X-Smug-Hidden", "false");
+      }
+
+      private void AddUploadHeaders(HttpContentHeaders headers, FileInfo file, string name, string md5Checksum)
+      {
+         headers.Add("Content-MD5", md5Checksum);
+         headers.Add("Content-Length", file.Length.ToString());
+         headers.ContentType = MediaTypeHeaderValue.Parse(GetMimeType(file.Extension));
+
+         headers.Add("X-Smug-FileName", name);
+         headers.Add("X-Smug-Title", name);
+         headers.Add("X-Smug-Caption", name);
+      }
 
       public static string GetMimeType(string extension)
       {
@@ -901,5 +880,158 @@
          return _mappings.TryGetValue(extension, out mime) ? mime : "application/octet-stream";
       }
 
+      public void ChangeState(DownloadState state)
+      {
+         switch (state)
+         {
+            case DownloadState.PendingUpload:
+               _prevProgress = -1;
+               _stopwatch.Restart();
+               ConsolePrinter.WriteProgressBar(0);
+               break;
+
+            case DownloadState.PendingResponse:
+               _stopwatch.Stop();
+               Console.WriteLine("");  
+               ConsolePrinter.Write(ConsoleColor.White, $"Took {_stopwatch.Elapsed}");
+               break;
+         }
+      }
+
+      Stopwatch _stopwatch = new Stopwatch(); 
+      int _prevProgress = -1;
+      public double PercentComplete
+      {
+         set
+         {
+            var progress = (int)(value * 100);
+            if (_prevProgress == progress)
+               return;
+            
+            ConsolePrinter.WriteProgressBar(progress, true);
+            _prevProgress = progress;
+         }
+      }
+
+      public class UploadReponse
+      {
+         public string stat { get; set; }
+         public string method { get; set; }
+         public string code { get; set; }
+         public string message { get; set; }
+         public ImageUploadData Image { get; set; }
+         public class ImageUploadData
+         {
+            public string ImageUri { get; set; }
+            public string AlbumImageUri { get; set; }
+            public string StatusImageReplaceUri { get; set; }
+            public string URL { get; set; }
+         }
+      }
+
+   }
+
+   public enum DownloadState
+   {
+      PendingUpload,
+      Uploading,
+      PendingResponse
+   }
+
+   public interface IUploader
+   {
+      double PercentComplete { set; }
+
+      void ChangeState(DownloadState pendingUpload);
+   }
+
+   internal class ProgressableStreamContent : HttpContent
+   {
+      private const int defaultBufferSize = 4096;
+      private const int minBuffersSize = 1024;
+
+      private readonly Stream content;
+      private readonly int bufferSize;
+      private readonly IUploader Uploader;
+
+      private bool contentConsumed;
+
+      public ProgressableStreamContent(IUploader Uploader, Stream content, int bufferSize = defaultBufferSize)
+      {
+         this.Uploader = Uploader ?? throw new ArgumentNullException("Uploader");
+         this.content = content ?? throw new ArgumentNullException("content");
+
+         if (bufferSize < minBuffersSize) // Less than 1kb for uplaoding is crazy!
+         {
+            throw new ArgumentOutOfRangeException("bufferSize", $"Minimum Buffer Size is {minBuffersSize}");
+         }
+         else
+         {
+            this.bufferSize = bufferSize;
+         }
+      }
+
+      protected override Task SerializeToStreamAsync(Stream stream, TransportContext context)
+      {
+         PrepareContent();
+
+         return Task.Run(() =>
+         {
+            var buffer = new Byte[bufferSize];
+            var size = content.Length;
+            var uploaded = 0;
+
+            Uploader.ChangeState(DownloadState.PendingUpload);
+
+            using (content)
+               while (true)
+               {
+                  var length = content.Read(buffer, 0, buffer.Length);
+                  if (length <= 0) break;
+
+                  uploaded += length;
+
+                  Uploader.PercentComplete = (double)uploaded / (double)size;
+
+                  stream.Write(buffer, 0, length);
+
+                  Uploader.ChangeState(DownloadState.Uploading);
+               }
+
+            Uploader.ChangeState(DownloadState.PendingResponse);
+         });
+      }
+
+      protected override bool TryComputeLength(out long length)
+      {
+         length = content.Length;
+         return true;
+      }
+
+      protected override void Dispose(bool disposing)
+      {
+         if (disposing)
+         {
+            content.Dispose();
+         }
+         base.Dispose(disposing);
+      }
+
+      private void PrepareContent()
+      {
+         if (contentConsumed)
+         {
+            if (content.CanSeek)
+            {
+               content.Position = 0;
+            }
+            else
+            {
+               throw new InvalidOperationException("Stream cannot Seek");
+            }
+         }
+
+         contentConsumed = true;
+      }
    }
 }
