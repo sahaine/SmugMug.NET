@@ -28,22 +28,35 @@
 
       static void Main(string[] args)
       {
-         _oauthToken = ConsoleAuthentication.GetOAuthTokenFromProvider(new FileTokenProvider());
+         try
+         {
 
-         _uploader = new ImageUploader(_oauthToken);
+            _oauthToken = ConsoleAuthentication.GetOAuthTokenFromProvider(new FileTokenProvider());
 
-         Upload2020Archives();
+            _uploader = new ImageUploader(_oauthToken);
 
-         //var fileList = Directory.GetFiles(@"E:\SampleImages", "*.jpg").ToList();
-         //if (!_oauthToken.Equals(OAuthToken.Invalid))
-         //{
-         //    ProcessImages("Haine", "Ha1ne99", "2020-07-24", fileList, fileList, fileList, fileList, fileList);
-         //}
+            Upload2020Archives();
 
+            //var fileList = Directory.GetFiles(@"E:\SampleImages", "*.jpg").ToList();
+            //if (!_oauthToken.Equals(OAuthToken.Invalid))
+            //{
+            //    ProcessImages("Haine", "Ha1ne99", "2020-07-24", fileList, fileList, fileList, fileList, fileList);
+            //}
+
+
+         }
+         catch (Exception e)
+         {
+            ConsolePrinter.Write(ConsoleColor.Red, e.ToString());
+         }
+         finally
+         {
 #if DEBUG
-         Console.WriteLine("Complete");
-         Console.ReadKey();
+            ConsolePrinter.Write(ConsoleColor.Cyan, "Complete");
+            Console.ReadKey();
 #endif
+         }
+
       }
 
       private static void Upload2020Archives()
@@ -62,7 +75,9 @@
                continue;
             }
 
-            var customerPassword = new IniFile($@"\\khpserver\CustomerData\{customerId}\{customerId}.ini").IniReadValue("Contact", "Password");
+            var customerIniFile = new IniFile($@"\\khpserver\CustomerData\{customerId}\{customerId}.ini");
+
+            var customerPassword = customerIniFile.IniReadValue("Contact", "Password");
 
             var shootId = parts.First();
             var incudeOriginals = true;
@@ -78,7 +93,23 @@
             var sepia = Directory.GetFiles($@"{archiveFolder}\ForCustomer\Edits\sepia", "*.jpg").Where(f => f.ToLower().Contains("facebook") == false).ToList();
             var bandW = Directory.GetFiles($@"{archiveFolder}\ForCustomer\Edits\BandW", "*.jpg").Where(f => f.ToLower().Contains("facebook") == false).ToList();
 
-            ProcessImages(customerId, customerPassword, shootId, original, video, colour, sepia, bandW);
+            var smugMugUrl = _uploader.ProcessImages(customerId, customerPassword, shootId, original, video, colour, sepia, bandW);
+
+            if (smugMugUrl != null)
+            {
+               try
+               {
+                  customerIniFile.IniWriteValue("Account", "SmugMugUrl", smugMugUrl);
+               }
+               catch (Exception e)
+               {
+                  ConsolePrinter.Write(ConsoleColor.Red, e.ToString());
+               }
+            }
+            else
+            {
+               ConsolePrinter.Write(ConsoleColor.Yellow , "No SmugMug Url returned :-( Not so SmugMug....");
+            }
          }
       }
 
@@ -107,50 +138,9 @@
          {
             if (year.Value.Colour.Count + year.Value.Sepia.Count + year.Value.BandW.Count > 0)
             {
-               ProcessImages("Haine", "Ha1ne99", year.Key, null, null, year.Value.Colour, year.Value.Sepia, year.Value.BandW);
+               _uploader.ProcessImages("Haine", "Ha1ne99", year.Key, null, null, year.Value.Colour, year.Value.Sepia, year.Value.BandW);
             }
          }
-      }
-
-      private static void ProcessImages(
-          string customerName,
-          string customerPassword,
-          string shootName,
-          List<string> originals,
-          List<string> videos,
-          List<string> colours,
-          List<string> sepias,
-          List<string> bandWs)
-      {
-         if (string.IsNullOrWhiteSpace(customerName))
-         {
-            ConsolePrinter.Write(ConsoleColor.Red, $"Customer Name not specfied!");
-            return;
-         }
-
-         if (string.IsNullOrWhiteSpace(customerPassword))
-         {
-            ConsolePrinter.Write(ConsoleColor.Red, $"Customer Password not specfied!");
-            return;
-         }
-
-         if (string.IsNullOrWhiteSpace(shootName))
-         {
-            ConsolePrinter.Write(ConsoleColor.Red, $"Shoot Name not specfied!");
-            return;
-         }
-
-         var customersFolder = _uploader.GetRoot().GetChildrenAsync(type: TypeEnum.Folder).Result.Single(f => f.Name == "Customers");
-         var customerFolder = _uploader.GetSubNode(customersFolder, customerName, TypeEnum.Folder, customerPassword);
-         var shootFolder = _uploader.GetSubNode(customerFolder, shootName, TypeEnum.Folder);
-         var editsFolder = _uploader.GetSubNode(shootFolder, "Edits", TypeEnum.Folder);
-
-         _uploader.Upload(shootFolder, "Original", originals);
-         _uploader.Upload(shootFolder, "Videos", videos);
-         _uploader.Upload(editsFolder, "Colour", colours);
-         _uploader.Upload(editsFolder, "Sepia", sepias);
-         _uploader.Upload(editsFolder, "BandW", bandWs);
-
       }
    }
 }
