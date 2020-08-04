@@ -8,25 +8,32 @@ using System.Diagnostics;
 
 namespace SmugMug.v2.Authentication
 {
-    public class ConsoleAuthentication
-    {
-        /// <summary>
-        /// Use the ITokenProvider to retrieved stored credentials. If they are not available, authorize with SmugMug using the console.
-        /// </summary>
-        public static OAuthToken GetOAuthTokenFromProvider(ITokenProvider provider)
-        {
-            OAuthToken oauthToken = default(OAuthToken);
-            if (!provider.TryGetCredentials(out oauthToken))
+   public class ConsoleAuthentication
+   {
+      /// <summary>
+      /// Use the ITokenProvider to retrieved stored credentials. If they are not available, authorize with SmugMug using the console.
+      /// </summary>
+      public static OAuthToken GetOAuthTokenFromProvider(ITokenProvider provider, string apiKey = null, string secret = null)
+      {
+         OAuthToken oauthToken = default(OAuthToken);
+         if (!provider.TryGetCredentials(out oauthToken))
+         {
+            // Do we have the secret/apikey?
+            if (string.IsNullOrWhiteSpace(apiKey))
             {
-                // Do we have the secret/apikey?
-                Console.WriteLine("Please enter your API Key and press [Enter]:");
-                string apiKey = Console.ReadLine();
-                Console.WriteLine("Please enter your Application Secret and press [Enter]:");
-                string secret = Console.ReadLine();
-
-                oauthToken = SmugMugAuthorize.AuthorizeSmugMug(apiKey, secret, AuthenticationOptions.FullAccess);
-                provider.SaveCredentials(oauthToken);
+               Console.WriteLine("Please enter your API Key and press [Enter]:");
+               apiKey =  Console.ReadLine();
             }
+
+            if (string.IsNullOrWhiteSpace(secret))
+            {
+               Console.WriteLine("Please enter your Application Secret and press [Enter]:");
+               secret = Console.ReadLine();
+            }
+
+            oauthToken = SmugMugAuthorize.AuthorizeSmugMug(apiKey, secret, AuthenticationOptions.FullAccess);
+            provider.SaveCredentials(oauthToken);
+         }
 
 #if DEBUG
             Debug.WriteLine(string.Format("Using APIKey={0}", oauthToken.ApiKey));
@@ -35,14 +42,12 @@ namespace SmugMug.v2.Authentication
             Debug.WriteLine(string.Format("Using tokenSecret={0}", oauthToken.TokenSecret));
 #endif
 
-            return oauthToken;
-        }
+         return oauthToken;
+      }
 
-        public static OAuthToken GetOAuthTokenFromFileProvider()
-        {
-            return GetOAuthTokenFromProvider(new FileTokenProvider());
-        }
-
-
-    }
+      public static OAuthToken GetOAuthTokenFromFileProvider(string apiKey = null, string secret = null)
+      {
+         return GetOAuthTokenFromProvider(new FileTokenProvider(), apiKey, secret);
+      }
+   }
 }

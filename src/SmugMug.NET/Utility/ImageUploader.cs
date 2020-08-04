@@ -20,7 +20,12 @@
 
    public class ImageUploader : IUploader
    {
-      private OAuthToken _oauthToken;
+      private readonly OAuthToken _oauthToken;
+      private readonly AlbumTemplateEntity _noBuyTemplate;
+      private readonly AlbumTemplateEntity _defaultTemplate;
+      private readonly NodeEntity _rootNode;
+
+      public NodeEntity CustomersFolder { get; }
 
       private static readonly Dictionary<string, NodeEntity> _cache = new Dictionary<string, NodeEntity>();
 
@@ -595,14 +600,18 @@
       public ImageUploader(OAuthToken token)
       {
          _oauthToken = token;
-      }
 
-      public NodeEntity GetRoot()
-      {
          var site = new SiteEntity(_oauthToken);
          var user = site.GetAuthenticatedUserAsync().Result;
-         return user.GetRootNodeAsync().Result;
+
+         var templates = user.GetAlbumTemplatesAsync().Result;
+
+         _noBuyTemplate = templates.Single(t => t.Name == "NoBuy");
+         _defaultTemplate = templates.Single(t => t.Name == "KHainePhotography");
+         _rootNode = user.GetRootNodeAsync().Result;
+         CustomersFolder = _rootNode.GetChildrenAsync(type: TypeEnum.Folder).Result.Single(f => f.Name == "Customers");
       }
+
 
       public NodeEntity GetSubNode(NodeEntity parentFolder, string subFolderName, TypeEnum nodeType, string subFolderPassword = "NONE")
       {
@@ -678,28 +687,39 @@
             return null;
          }
 
-         var customersFolder = GetRoot().GetChildrenAsync(type: TypeEnum.Folder).Result.Single(f => f.Name == "Customers");
-         var customerFolder = GetSubNode(customersFolder, customerName, TypeEnum.Folder, customerPassword);
+         var customerFolder = GetSubNode(CustomersFolder, customerName, TypeEnum.Folder, customerPassword);
 
          if (customerFolder == null)
          {
-            ConsolePrinter.Write(ConsoleColor.Red, $"No Customer Folder - Noting we can do!");
+            ConsolePrinter.Write(ConsoleColor.Red, $"No Customer Folder - Nothing we can do!");
             return null;
+         }
+
+         var incudeOriginals = true;
+
+         if (customerName == "Haine" && shootName.Substring(0, 2) == "20")
+         {
+            shootName = shootName.Substring(0, 4);
+            incudeOriginals = false;
          }
 
          var shootFolder = GetSubNode(customerFolder, shootName, TypeEnum.Folder);
          var editsFolder = GetSubNode(shootFolder, "Edits", TypeEnum.Folder);
 
-         Upload(shootFolder, "Original", originals);
-         Upload(shootFolder, "Video", videos);
+         if (incudeOriginals)
+         {
+            Upload(shootFolder, "Original", originals);
+         }
+
          Upload(editsFolder, "Colour", colours);
          Upload(editsFolder, "Sepia", sepias);
          Upload(editsFolder, "BandW", bandWs);
+         Upload(shootFolder, "Video", videos);
 
-         var folderUri = customersFolder.Uris.Single(uri => uri.Key == "FolderByID").Value.Uri;
-         var folder = FolderEntity.RetrieveEntityAsync<FolderEntity>(_oauthToken, $"{Constants.Addresses.SmugMugApi}{folderUri}").Result;
+         //var folderUri = customersFolder.Uris.Single(uri => uri.Key == "FolderByID").Value.Uri;
+         //var folder = FolderEntity.RetrieveEntityAsync<FolderEntity>(_oauthToken, $"{Constants.Addresses.SmugMugApi}{folderUri}").Result;
 
-         return folder.WebUri;
+         return customerFolder.WebUri;
       }
 
       public void Upload(NodeEntity parentFolder, string albumName, List<string> files)
@@ -718,10 +738,12 @@
             var albumUri = albumNode.Uris.Single(uri => uri.Key == "Album").Value.Uri;
             var album = AlbumEntity.RetrieveEntityAsync<AlbumEntity>(_oauthToken, $"{Constants.Addresses.SmugMugApi}{albumUri}").Result;
 
-            if (albumName == "Original" && album.CanBuy)
+            var template = albumName == "Original" || albumName == "Video" ? _noBuyTemplate : _defaultTemplate;
+
+            if (album.TemplateUri != template.TemplateUri)
             {
-               album.CanBuy = false;
-               album.SaveAsync().Wait();
+               ConsolePrinter.Write(ConsoleColor.Yellow, $"Fixing album template on {albumNode.Key}.");
+               album.ApplyAlbumTemplateAsync(template).Wait();
             }
 
             var processedItems = album.GetImagesAsync().Result?.Select(i => i.FileName).ToList();
@@ -734,7 +756,7 @@
                return;
             }
 
-            ConsolePrinter.Write(ConsoleColor.White, $"{processedFiles} complete, {files.Count() - processedFiles} still tp upload.");
+            ConsolePrinter.Write(ConsoleColor.White, $"{processedFiles} complete, {files.Count() - processedFiles} still to upload.");
 
             OAuth.OAuthMessageHandler oAuthhandler = new OAuth.OAuthMessageHandler(
                _oauthToken.ApiKey,
@@ -771,7 +793,7 @@
 
                      var tokenSource = new CancellationTokenSource();
 
-                     ConsolePrinter.Write(ConsoleColor.Cyan, $"Uploading {fileItem.Name} size:{sizeInKb}kb timeout:{timeout} {files.Count() - count} still to process");
+                     ConsolePrinter.Write(ConsoleColor.Cyan, $"Uploading {fileItem.Name} size:{sizeInKb}kb timeout:{timeout} {albumNode.Key} {files.Count() - count} still to process");
 
                      var md5CheckSum = GetCheckSum(file);
 
@@ -815,18 +837,36 @@
 
       private (ConsoleColor, string) ParseReponse(HttpResponseMessage result)
       {
-         var resp = result.Content.ReadAsStringAsync();
-         resp.Wait();
-
-         var response = JsonConvert.DeserializeObject<UploadReponse>(Uri.UnescapeDataString(resp.Result));
-         if (response.stat != "ok")
+         if (result.StatusCode == HttpStatusCode.OK)
          {
-            Debug.WriteLine(resp.Result);
-            throw new HttpRequestException($"{response.message} : {response.code}");
-         }
+            var resp = result.Content.ReadAsStringAsync();
+            resp.Wait();
 
-         return (result.IsSuccessStatusCode ? ConsoleColor.Green : ConsoleColor.Red, result.StatusCode.ToString());
+            var response = JsonConvert.DeserializeObject<UploadReponse>(Uri.UnescapeDataString(resp.Result));
+            if (response.stat != "ok")
+            {
+               Debug.WriteLine(resp.Result);
+               throw new HttpRequestException($"{response.message} : {response.code}");
+            }
+
+            return (result.IsSuccessStatusCode ? ConsoleColor.Green : ConsoleColor.Red, result.StatusCode.ToString());
+         } 
+         else
+         {
+            var fileName = Path.GetTempFileName() + ".htm";
+            using (StreamReader sr = new StreamReader(result.Content.ReadAsStreamAsync().Result))
+            {
+               using (StreamWriter sw = new StreamWriter(fileName, false))
+               {
+                  sw.Write(sr.ReadToEnd());
+               }
+            }
+            Process.Start(fileName);
+
+            return (ConsoleColor.Red, result.ReasonPhrase);
+         }
       }
+
 
       private string GetCheckSum(string file)
       {
@@ -904,6 +944,7 @@
 
       Stopwatch _stopwatch = new Stopwatch();
       int _prevProgress = -1;
+
       public double PercentComplete
       {
          set

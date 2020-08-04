@@ -58,8 +58,7 @@ namespace SmugMug.v2.Authentication.Tokens
         public string FileName { get { return _fileName; } set { _fileName = value; } }
 
 
-        public FileTokenProvider()
-            : this(null, null)
+        public FileTokenProvider() : this(null, null)
         {
 
         }
