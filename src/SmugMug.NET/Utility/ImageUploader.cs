@@ -613,33 +613,31 @@
       }
 
 
-      public NodeEntity GetSubNode(NodeEntity parentFolder, string subFolderName, TypeEnum nodeType, string subFolderPassword = "NONE")
+      public NodeEntity GetSubNode(NodeEntity parentFolder, string subFolderName, TypeEnum nodeType, bool cached = true, string subFolderPassword = "NONE")
       {
          var key = $"{parentFolder.Key}.{subFolderName}";
 
-         if (_cache.ContainsKey(key))
+         if (cached && _cache.ContainsKey(key))
          {
             ConsolePrinter.Write(ConsoleColor.Green, $"Loaded {nodeType} : {subFolderName} (cached)");
             return _cache[key];
          }
 
-         var subFolder = parentFolder.GetChildrenAsync(type: nodeType).Result?.FirstOrDefault(f => f.Name == subFolderName);
+         var subFolder = parentFolder.GetChildrenAsync(type: nodeType).Result?.FirstOrDefault(f => string.Equals(f.Name, subFolderName, StringComparison.CurrentCultureIgnoreCase));
 
          if (subFolder != null)
          {
             subFolder.Key = key;
-            _cache.Add(key, subFolder);
+            if (!_cache.ContainsKey(key))
+               _cache.Add(key, subFolder);
+            else
+               _cache[key] = subFolder;
+
             ConsolePrinter.Write(ConsoleColor.Green, $"Loaded {nodeType} : {subFolderName}");
             return subFolder;
          }
 
          ConsolePrinter.Write(ConsoleColor.DarkYellow, $"Creating {nodeType} : {subFolderName}");
-
-         if (string.IsNullOrEmpty(subFolderPassword))
-         {
-            ConsolePrinter.Write(ConsoleColor.Red, $"Customer Password not specfied!");
-            return null;
-         }
 
          //we need to create it
          subFolder = new NodeEntity(_oauthToken)
@@ -662,7 +660,6 @@
          _cache.Add(key, subFolder);
 
          return subFolder;
-
       }
 
       public string ProcessImages(
@@ -687,7 +684,13 @@
             return null;
          }
 
-         var customerFolder = GetSubNode(CustomersFolder, customerName, TypeEnum.Folder, customerPassword);
+         if (string.IsNullOrWhiteSpace(customerPassword))
+         {
+            ConsolePrinter.Write(ConsoleColor.Red, $"Users Password not specfied!");
+            return null;
+         }
+
+         var customerFolder = GetSubNode(CustomersFolder, customerName, TypeEnum.Folder, true, customerPassword);
 
          if (customerFolder == null)
          {
@@ -745,18 +748,22 @@
                ConsolePrinter.Write(ConsoleColor.Yellow, $"Fixing album template on {albumNode.Key}.");
                album.ApplyAlbumTemplateAsync(template).Wait();
             }
-
-            var processedItems = album.GetImagesAsync().Result?.Select(i => i.FileName).ToList();
-
-            var processedFiles = processedItems?.Count ?? 0;
-
-            if (processedFiles == files.Count())
+            else
             {
-               ConsolePrinter.Write(ConsoleColor.White, "No folder upload action required!");
+               ConsolePrinter.Write(ConsoleColor.Green, $"Album template on {albumNode.Key} is set to {template.Name}.");
+            }
+
+            var existingItems = album.GetImagesAsync().Result?.Select(i => i.FileName).ToList();
+
+            var existingItemCount = existingItems?.Count ?? 0;
+
+            if (files.Count() > 1 && existingItemCount == files.Count())
+            {
+               ConsolePrinter.Write(ConsoleColor.White, $"No folder upload action required Folder counts match {existingItemCount}.");
                return;
             }
 
-            ConsolePrinter.Write(ConsoleColor.White, $"{processedFiles} complete, {files.Count() - processedFiles} still to upload.");
+            ConsolePrinter.Write(ConsoleColor.White, $"{existingItemCount} exist, {files.Count()} to upload.");
 
             OAuth.OAuthMessageHandler oAuthhandler = new OAuth.OAuthMessageHandler(
                _oauthToken.ApiKey,
@@ -779,12 +786,13 @@
                {
                   try
                   {
+                     count++;
                      var name = Path.GetFileNameWithoutExtension(file);
 
-                     if (processedItems != null && processedItems.Any(i => i.StartsWith(name, StringComparison.OrdinalIgnoreCase) || name.StartsWith(i, StringComparison.OrdinalIgnoreCase)))
+                     if (existingItems != null && existingItems.Any(i => i.StartsWith(name, StringComparison.OrdinalIgnoreCase) || name.StartsWith(i, StringComparison.OrdinalIgnoreCase)))
                      {
                         ConsolePrinter.Write(ConsoleColor.Yellow, $"Skipping {name} it's already there!");
-                        continue;
+                        continue;                        
                      }
 
                      var fileItem = new FileInfo(file);
@@ -821,11 +829,6 @@
                   {
                      ConsolePrinter.Write(ConsoleColor.Red, e.ToString());
                   }
-                  finally
-                  {
-                     count++;
-                  }
-
                }
             }
          }
@@ -854,13 +857,8 @@
          else
          {
             var fileName = Path.GetTempFileName() + ".htm";
-            using (StreamReader sr = new StreamReader(result.Content.ReadAsStreamAsync().Result))
-            {
-               using (StreamWriter sw = new StreamWriter(fileName, false))
-               {
-                  sw.Write(sr.ReadToEnd());
-               }
-            }
+            var data = System.Text.Encoding.UTF8.GetString(result.Content.ReadAsByteArrayAsync().Result);
+            File.WriteAllText(fileName, data);
             Process.Start(fileName);
 
             return (ConsoleColor.Red, result.ReasonPhrase);

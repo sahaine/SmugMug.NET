@@ -66,7 +66,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="IniFile.cs" />
     <Compile Include="Program.cs">
       <SubType>
       </SubType>
@@ -78,6 +77,10 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\..\PhotoStudioManager\src\PhotoStudioManager.Common\PhotoStudioManager.Common.csproj">
+      <Project>{30d9d532-dd26-4d2f-ace7-65600e5a942e}</Project>
+      <Name>PhotoStudioManager.Common</Name>
+    </ProjectReference>
     <ProjectReference Include="..\OAuth.Net\OAuth.net.csproj">
       <Project>{3646a7fb-e8c6-4965-9eb9-ee9947b5dceb}</Project>
       <Name>OAuth.net</Name>

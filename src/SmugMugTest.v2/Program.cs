@@ -7,13 +7,13 @@
    using System.Linq;
    using System.Net;
    using System.Net.Mail;
-   using System.Net.Security;
+
+   using PhotoStudioManager.Common;
    using SmugMug.NET.Utility;
-   using SmugMug.v2;
+
    using SmugMug.v2.Authentication;
    using SmugMug.v2.Authentication.Tokens;
    using SmugMugShared.Extensions;
-   using SmugMugTest.v2;
 
    class Program
    {
@@ -33,11 +33,12 @@
             };
 
             _oauthToken = ConsoleAuthentication.GetOAuthTokenFromProvider(new FileTokenProvider());
-
             _uploader = new ImageUploader(_oauthToken);
 
+            _uploader.GetSubNode(_uploader.CustomersFolder, "test", SmugMug.v2.Types.TypeEnum.Folder, false, "Pa55w0rd");
+
             //ProcessImages("Wood", "2020-07-26");
-            Upload2020Archives();
+            //Upload2020Archives();
 
          }
          catch (Exception e)
@@ -54,14 +55,14 @@
 
       }
 
-      private static void ProcessImages(string customerId, string shootId)
+      private static string  ProcessImages(string customerId, string shootId)
       {
          const string customerDataPath = @"\\khpserver\CustomerData";
          const string websitePath = @"\\khpserver\WebSites\KHainePhotography.co.uk";
 
          var shootData = new CustomerShootData(customerId, shootId, customerDataPath, websitePath);
 
-         _uploader.ProcessImages(customerId, shootData.CustomerData.UsersPassword, shootId, shootData.Originals(), shootData.Videos(), shootData.ColourEdits(), shootData.SepiaEdits(), shootData.BandWEdits());
+         return _uploader.ProcessImages(customerId, shootData.CustomerData.UsersPassword, shootId, shootData.Originals(), shootData.Videos(), shootData.ColourEdits(), shootData.SepiaEdits(), shootData.BandWEdits());
       }
 
       private static void Upload2020Archives()
