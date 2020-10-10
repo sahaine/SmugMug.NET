@@ -686,7 +686,7 @@
 
          if (string.IsNullOrWhiteSpace(customerPassword))
          {
-            ConsolePrinter.Write(ConsoleColor.Red, $"Users Password not specfied!");
+            ConsolePrinter.Write(ConsoleColor.Red, $"User: {customerName} Password not specfied!");
             return null;
          }
 
@@ -732,6 +732,11 @@
             return;
          }
 
+         if (files.Any(f => f.ToLower().EndsWith(".jpg")))
+         {
+            files.Add("\\\\khpserver\\Documents\\CopyrightRelease.JPG");
+         }
+
          ConsolePrinter.Write(ConsoleColor.White, $"Uploading {files.Count()} images to {albumName}.");
 
          try
@@ -763,7 +768,7 @@
                return;
             }
 
-            ConsolePrinter.Write(ConsoleColor.White, $"{existingItemCount} exist, {files.Count()} to upload.");
+            ConsolePrinter.Write(ConsoleColor.White, $"{albumNode.Key} {existingItemCount} exist, {files.Count()} to upload.");
 
             OAuth.OAuthMessageHandler oAuthhandler = new OAuth.OAuthMessageHandler(
                _oauthToken.ApiKey,
@@ -781,27 +786,35 @@
                AddUploadHeaders(client, albumUri);
 
                var count = 0;
-
+               var dataToProcessKb = files.Select(f => new FileInfo(f).Length).Sum() / 1024;
                foreach (var file in files)
                {
                   try
                   {
-                     count++;
                      var name = Path.GetFileNameWithoutExtension(file);
+                     var fileInfo = new FileInfo(file);
+                     dataToProcessKb -= (fileInfo.Length / 1024);
+                     count++;
 
                      if (existingItems != null && existingItems.Any(i => i.StartsWith(name, StringComparison.OrdinalIgnoreCase) || name.StartsWith(i, StringComparison.OrdinalIgnoreCase)))
                      {
                         ConsolePrinter.Write(ConsoleColor.Yellow, $"Skipping {name} it's already there!");
-                        continue;                        
+                        continue;
                      }
 
                      var fileItem = new FileInfo(file);
-                     var sizeInKb = (int)(fileItem.Length / 1024);
-                     var timeout = TimeSpan.FromSeconds((sizeInKb / 100) + 60); //100kb a second is reasonalble + 60 secs to handle when things are sloooooow...)
+                     _lastSizeInKb = (int)(fileItem.Length / 1024);
+                     var timeout = TimeSpan.FromSeconds((_lastSizeInKb / 100) + 60); //100kb a second is reasonalble + 60 secs to handle when things are sloooooow...)
 
                      var tokenSource = new CancellationTokenSource();
 
-                     ConsolePrinter.Write(ConsoleColor.Cyan, $"Uploading {fileItem.Name} size:{sizeInKb}kb timeout:{timeout} {albumNode.Key} {files.Count() - count} still to process");
+                     var speed = _lastSpeed == 0 ? 700 : _lastSpeed;
+                     var fileDuration = TimeSpan.FromSeconds(_lastSizeInKb / speed);
+                     var filesToProcess = files.Count() - count;
+                     var etaDuration = TimeSpan.FromSeconds((dataToProcessKb + _lastSizeInKb) / speed);
+
+                     ConsolePrinter.Write(ConsoleColor.Cyan, $"Uploading {fileItem.Name} size-{_lastSizeInKb}kb timeout-{timeout} Duration-{fileDuration:mm\\:ss}");
+                     ConsolePrinter.Write(ConsoleColor.Cyan, $"{filesToProcess} still to process Finish-{DateTime.Now.Add(etaDuration).AddSeconds(filesToProcess * 1.4):T}");
 
                      var md5CheckSum = GetCheckSum(file);
 
@@ -853,7 +866,7 @@
             }
 
             return (result.IsSuccessStatusCode ? ConsoleColor.Green : ConsoleColor.Red, result.StatusCode.ToString());
-         } 
+         }
          else
          {
             var fileName = Path.GetTempFileName() + ".htm";
@@ -934,8 +947,25 @@
 
             case DownloadState.PendingResponse:
                _stopwatch.Stop();
+
+               var thisSpeed = (_lastSizeInKb / _stopwatch.Elapsed.TotalSeconds);
+
+               if (thisSpeed > 5000)
+               {
+                  thisSpeed = _lastSpeed;
+               }
+
+               if (_lastSpeed == 0)
+               {
+                  _lastSpeed = thisSpeed;
+               }
+               else
+               {
+                  _lastSpeed = (thisSpeed + _lastSpeed) / 2;
+               }
+
                Console.WriteLine("");
-               ConsolePrinter.Write(ConsoleColor.White, $"Took {_stopwatch.Elapsed}");
+               ConsolePrinter.Write(ConsoleColor.White, $"Took {_stopwatch.Elapsed} @ {thisSpeed:F2}kbps");
                break;
          }
       }
@@ -955,6 +985,9 @@
             _prevProgress = progress;
          }
       }
+
+      private int _lastSizeInKb;
+      private double _lastSpeed = 0;
 
       public class UploadReponse
       {

@@ -29,16 +29,17 @@
             ServicePointManager.ServerCertificateValidationCallback += (sender, cert, chain, error) =>
             {
                Debug.WriteLine(cert.Subject);
-               return cert.Subject == "CN=smugmug.com" || cert.Subject == "CN=khainephotography.co.uk";  
+               return cert.Subject == "CN=smugmug.com" || cert.Subject == "CN=khainephotography.co.uk";
             };
 
             _oauthToken = ConsoleAuthentication.GetOAuthTokenFromProvider(new FileTokenProvider());
             _uploader = new ImageUploader(_oauthToken);
 
-            _uploader.GetSubNode(_uploader.CustomersFolder, "test", SmugMug.v2.Types.TypeEnum.Folder, false, "Pa55w0rd");
+            //_uploader.GetSubNode(_uploader.CustomersFolder, "test", SmugMug.v2.Types.TypeEnum.Folder, false, "Pa55w0rd");
 
             //ProcessImages("Wood", "2020-07-26");
-            //Upload2020Archives();
+            UploadFromArchives("2018*", false, true);
+            UploadFromArchives("2019*", true, true);
 
          }
          catch (Exception e)
@@ -55,7 +56,7 @@
 
       }
 
-      private static string  ProcessImages(string customerId, string shootId)
+      private static string ProcessImages(string customerId, string shootId)
       {
          const string customerDataPath = @"\\khpserver\CustomerData";
          const string websitePath = @"\\khpserver\WebSites\KHainePhotography.co.uk";
@@ -65,15 +66,27 @@
          return _uploader.ProcessImages(customerId, shootData.CustomerData.UsersPassword, shootId, shootData.Originals(), shootData.Videos(), shootData.ColourEdits(), shootData.SepiaEdits(), shootData.BandWEdits());
       }
 
-      private static void Upload2020Archives()
+      private static void UploadFromArchives(string search, bool incudeOriginals, bool emailCustomer)
       {
-         var Archives2020 = Directory.GetDirectories(@"\\vmwarehost\KHPArchive\KHP_ARCHIVE", "2020*", SearchOption.TopDirectoryOnly);
+         var emailBody = File.ReadAllText(@"\\khpserver\Documents\EMailTempates\NewSmugMug.html");
 
-         foreach (var archiveFolder in Archives2020.Reverse())
+         var archiveFolders = Directory.GetDirectories(@"\\vmwarehost\KHPArchive\KHP_ARCHIVE", search, SearchOption.TopDirectoryOnly);
+
+         Console.WriteLine($"Search {search} resulted in {archiveFolders.Length} folders"); 
+
+         foreach (var archiveFolder in archiveFolders)
          {
             try
             {
+               var smugMugUploadCompleteFile = $@"{archiveFolder}\SmugMugUpload.Complete";
                var folderName = new DirectoryInfo(archiveFolder).Name;
+
+               if (File.Exists(smugMugUploadCompleteFile))
+               {
+                  ConsolePrinter.Write(ConsoleColor.Yellow, $"{folderName} Has already been uploaded");
+                  continue;
+               }
+               
                var parts = folderName.Split('_');
                var customerId = parts.Last();
 
@@ -83,34 +96,36 @@
                   continue;
                }
 
-               var customerIniFile = new IniFile($@"\\khpserver\CustomerData\{customerId}\{customerId}.ini");
+               var iniFileName = $@"\\khpserver\CustomerData\{customerId}\{customerId}.ini";
+
+               if (!File.Exists(iniFileName ) )
+               {
+                  File.WriteAllText(iniFileName, string.Empty);
+               }
+
+               var customerIniFile = new IniFile(iniFileName);
                var customerPassword = customerIniFile.IniReadValue("Contact", "Password");
                var customerEmailAddress = customerIniFile.IniReadValue("Contact", "EMailAddress");
                var customerSmugMugUrl = customerIniFile.IniReadValue("Account", "SmugMugUrl");
 
-               //Debug.WriteLine($"{customerId} {customerEmailAddress} {customerPassword}");
-               //Email(
-               //   File.ReadAllText(@"\\khpserver\Documents\EMailTempates\NewSmugMug.html").Replace("SMUGMUGURLADDRESS", customerSmugMugUrl), 
-               //   customerEmailAddress,
-               //   customerId);
-
-               continue;
-
                var shootId = parts.First();
-               var incudeOriginals = true;
                if (customerId == "Haine" && shootId.Substring(0, 2) == "20")
                {
                   shootId = shootId.Substring(0, 4);
                   incudeOriginals = false;
                }
+              
+               var original = incudeOriginals ? GetFiles($@"{archiveFolder}\ForCustomer\Original", "*.jpg") : new List<string>();
+               
+               var colour = GetFiles($@"{archiveFolder}\ForCustomer\Edits\colour", "*.jpg");
+               var sepia = GetFiles($@"{archiveFolder}\ForCustomer\Edits\sepia", "*.jpg");
+               var bandW = GetFiles($@"{archiveFolder}\ForCustomer\Edits\BandW", "*.jpg");
 
-               var video = Directory.GetFiles($@"{ archiveFolder}\ForCustomer", "*.mp4").Where(f => f.ToLower().Contains("facebook") == false).ToList();
-               var original = incudeOriginals ? Directory.GetFiles($@"{archiveFolder}\ForCustomer\Original", "*.jpg").Where(f => f.ToLower().Contains("facebook") == false).ToList() : new List<string>();
-               var colour = Directory.GetFiles($@"{archiveFolder}\ForCustomer\Edits\colour", "*.jpg").Where(f => f.ToLower().Contains("facebook") == false).ToList();
-               var sepia = Directory.GetFiles($@"{archiveFolder}\ForCustomer\Edits\sepia", "*.jpg").Where(f => f.ToLower().Contains("facebook") == false).ToList();
-               var bandW = Directory.GetFiles($@"{archiveFolder}\ForCustomer\Edits\BandW", "*.jpg").Where(f => f.ToLower().Contains("facebook") == false).ToList();
+               var video = GetFiles($@"{ archiveFolder}\ForCustomer", "*.mp4");
 
                var newCustomerSmugMugUrl = _uploader.ProcessImages(customerId, customerPassword, shootId, original, video, colour, sepia, bandW);
+
+               File.WriteAllText(smugMugUploadCompleteFile, string.Empty); 
 
                if (newCustomerSmugMugUrl != null)
                {
@@ -120,6 +135,22 @@
                      {
                         customerSmugMugUrl = newCustomerSmugMugUrl;
                         customerIniFile.IniWriteValue("Account", "SmugMugUrl", customerSmugMugUrl);
+                     }
+                     catch (Exception e)
+                     {
+                        ConsolePrinter.Write(ConsoleColor.Red, e.ToString());
+                     }
+                  }
+
+                  if (emailCustomer &&
+                     !string.IsNullOrEmpty(customerEmailAddress) &&
+                     string.IsNullOrEmpty(customerIniFile.IniReadValue("SmugMug", "EmailSent")))
+                  {
+                     try
+                     {
+                        Console.WriteLine($"Emailing {customerEmailAddress} for accourn {customerId}");
+                        Email(emailBody.Replace("SMUGMUGURLADDRESS", customerSmugMugUrl), customerEmailAddress, customerId);
+                        customerIniFile.IniWriteValue("SmugMug", "EmailSent", "true");
                      }
                      catch (Exception e)
                      {
@@ -140,30 +171,34 @@
          }
       }
 
-      public static void Email(string htmlString,  string customersAddress, string customerId)
+      private static List<string> GetFiles(string path, string pattern)
       {
-         try
+         if (!Directory.Exists(path))
          {
-            MailMessage message = new MailMessage();
-            SmtpClient smtp = new SmtpClient();
-            message.From = new MailAddress("Admin@KHainePhotography.co.uk");
-            message.To.Add(new MailAddress(customersAddress));
-            message.Bcc.Add(new MailAddress("Karen@KhainePhotography.co.uk"));
-            message.Subject = $"KHainePhotographay Digital Downloads Now Availalble - {customerId}";
-            message.IsBodyHtml = true; //to make message body as html  
-            message.Body = htmlString;
-            smtp.Port = 25;
-            smtp.Host = "KHPServer"; //for gmail host  
-            smtp.EnableSsl = true;
-            smtp.UseDefaultCredentials = false;
-            smtp.Credentials = new NetworkCredential("Admin@KHainePhotography.co.uk", "Access12!");
-            smtp.DeliveryMethod = SmtpDeliveryMethod.Network;
-            smtp.Send(message);
+            ConsolePrinter.Write(ConsoleColor.Yellow, $"Path does note exists - {path}");
+            return new List<string>();
          }
-         catch (Exception e) 
-         {
-            ConsolePrinter.Write(ConsoleColor.Red, e.ToString());
-         }
+
+         return Directory.GetFiles(path, pattern).Where(f => !f.ToLower().Contains("facebook")).ToList();
+      }
+
+      public static void Email(string htmlString, string customersAddress, string customerId)
+      {
+         MailMessage message = new MailMessage();
+         SmtpClient smtp = new SmtpClient();
+         message.From = new MailAddress("Admin@KHainePhotography.co.uk");
+         message.To.Add(new MailAddress(customersAddress));
+         message.Bcc.Add(new MailAddress("Karen@KhainePhotography.co.uk"));
+         message.Subject = $"KHainePhotographay Digital Downloads Now Availalble - {customerId}";
+         message.IsBodyHtml = true;
+         message.Body = htmlString;
+         smtp.Port = 25;
+         smtp.Host = "KHPServer";
+         smtp.EnableSsl = true;
+         smtp.UseDefaultCredentials = false;
+         smtp.Credentials = new NetworkCredential("Admin@KHainePhotography.co.uk", "Access12!");
+         smtp.DeliveryMethod = SmtpDeliveryMethod.Network;
+         smtp.Send(message);
       }
 
       private static void UploadHaineArchives()
