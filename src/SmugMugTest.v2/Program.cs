@@ -20,27 +20,31 @@
       private static OAuthToken _oauthToken;
       private static ImageUploader _uploader;
 
+      private static string EmailBody = File.ReadAllText(@"\\khpserver\Documents\EMailTempates\NewSmugMug.html");
+
       static void Main(string[] args)
       {
          Console.CursorVisible = false;
+
+         ServicePointManager.ServerCertificateValidationCallback += (sender, cert, chain, error) =>
+         {
+            Debug.WriteLine(cert.Subject);
+            return cert.Subject == "CN=smugmug.com" || cert.Subject == "CN=khainephotography.co.uk";
+         };
+
          try
          {
-
-            ServicePointManager.ServerCertificateValidationCallback += (sender, cert, chain, error) =>
-            {
-               Debug.WriteLine(cert.Subject);
-               return cert.Subject == "CN=smugmug.com" || cert.Subject == "CN=khainephotography.co.uk";
-            };
-
             _oauthToken = ConsoleAuthentication.GetOAuthTokenFromProvider(new FileTokenProvider());
             _uploader = new ImageUploader(_oauthToken);
 
-            //_uploader.GetSubNode(_uploader.CustomersFolder, "test", SmugMug.v2.Types.TypeEnum.Folder, false, "Pa55w0rd");
+            UploadFromArchives("2016*", false, true, true);
+            UploadFromArchives("2017*", false, true, true);
+            UploadFromArchives("2018*", false, true, true);
+            UploadFromArchives("2019*", true, true, true);
+            UploadFromArchives("2020*", true, true, true);
 
             //ProcessImages("Wood", "2020-07-26");
-            UploadFromArchives("2018*", false, true);
-            UploadFromArchives("2019*", true, true);
-
+            //UploadArchiveFolder(@"\\VMWareHost\b$\KHPArchiveToProcess\2017-02-26_Sharp", false, true, true);
          }
          catch (Exception e)
          {
@@ -66,108 +70,141 @@
          return _uploader.ProcessImages(customerId, shootData.CustomerData.UsersPassword, shootId, shootData.Originals(), shootData.Videos(), shootData.ColourEdits(), shootData.SepiaEdits(), shootData.BandWEdits());
       }
 
-      private static void UploadFromArchives(string search, bool incudeOriginals, bool emailCustomer)
+      private static void UploadFromArchives(string search, bool incudeOriginals, bool emailCustomer, bool useUploadedCheck)
       {
-         var emailBody = File.ReadAllText(@"\\khpserver\Documents\EMailTempates\NewSmugMug.html");
+         var archiveLocations = new[] { @"\\vmwarehost\KHPArchive\KHP_ARCHIVE",
+                                        @"\\VMWareHost\b$\KHPArchiveToProcess"};
 
-         var archiveFolders = Directory.GetDirectories(@"\\vmwarehost\KHPArchive\KHP_ARCHIVE", search, SearchOption.TopDirectoryOnly);
+         var archiveFolders = archiveLocations.Where(Directory.Exists)
+                       .SelectMany(f => Directory.GetDirectories(f, search, SearchOption.TopDirectoryOnly))
+                       .Select(f => new DirectoryInfo(f))
+                       .Where(f => ShouldProcess(f, useUploadedCheck))
+                       .OrderBy(f => f.Name)
+                       .ToList();
 
-         Console.WriteLine($"Search {search} resulted in {archiveFolders.Length} folders"); 
+         Console.WriteLine($"Search {search} resulted in {archiveFolders.Count} folders");
 
          foreach (var archiveFolder in archiveFolders)
          {
-            try
+            UploadArchiveFolder(archiveFolder, incudeOriginals, emailCustomer, useUploadedCheck);
+         }
+      }
+
+      private static bool ShouldProcess(DirectoryInfo archiveFolder, bool useUploadedCheck)
+      {
+         var folderName = archiveFolder.Name;
+
+         var parts = folderName.Split('_');
+         var customerId = parts.Last();
+
+         if (string.Equals(customerId, "Test", StringComparison.InvariantCultureIgnoreCase) ||
+             string.Equals(customerId, "GoApe", StringComparison.InvariantCultureIgnoreCase))
+         {
+            return false;
+         }
+
+         if (!Directory.Exists($@"{archiveFolder}\ForCustomer\Edits"))
+         {
+            ConsolePrinter.Write(ConsoleColor.Yellow, $"{folderName} has no edits folder");
+            return false;
+         }
+
+         var iniFileName = $@"\\khpserver\CustomerData\{customerId}\{customerId}.ini";
+         if (!File.Exists(iniFileName))
+         {
+            if (!Directory.Exists($@"\\khpserver\CustomerData\{customerId}"))
             {
-               var smugMugUploadCompleteFile = $@"{archiveFolder}\SmugMugUpload.Complete";
-               var folderName = new DirectoryInfo(archiveFolder).Name;
-
-               if (File.Exists(smugMugUploadCompleteFile))
-               {
-                  ConsolePrinter.Write(ConsoleColor.Yellow, $"{folderName} Has already been uploaded");
-                  continue;
-               }
-               
-               var parts = folderName.Split('_');
-               var customerId = parts.Last();
-
-               if (string.Equals(customerId, "Test", StringComparison.InvariantCultureIgnoreCase) ||
-                   string.Equals(customerId, "Haine", StringComparison.InvariantCultureIgnoreCase))
-               {
-                  continue;
-               }
-
-               var iniFileName = $@"\\khpserver\CustomerData\{customerId}\{customerId}.ini";
-
-               if (!File.Exists(iniFileName ) )
-               {
-                  File.WriteAllText(iniFileName, string.Empty);
-               }
-
-               var customerIniFile = new IniFile(iniFileName);
-               var customerPassword = customerIniFile.IniReadValue("Contact", "Password");
-               var customerEmailAddress = customerIniFile.IniReadValue("Contact", "EMailAddress");
-               var customerSmugMugUrl = customerIniFile.IniReadValue("Account", "SmugMugUrl");
-
-               var shootId = parts.First();
-               if (customerId == "Haine" && shootId.Substring(0, 2) == "20")
-               {
-                  shootId = shootId.Substring(0, 4);
-                  incudeOriginals = false;
-               }
-              
-               var original = incudeOriginals ? GetFiles($@"{archiveFolder}\ForCustomer\Original", "*.jpg") : new List<string>();
-               
-               var colour = GetFiles($@"{archiveFolder}\ForCustomer\Edits\colour", "*.jpg");
-               var sepia = GetFiles($@"{archiveFolder}\ForCustomer\Edits\sepia", "*.jpg");
-               var bandW = GetFiles($@"{archiveFolder}\ForCustomer\Edits\BandW", "*.jpg");
-
-               var video = GetFiles($@"{ archiveFolder}\ForCustomer", "*.mp4");
-
-               var newCustomerSmugMugUrl = _uploader.ProcessImages(customerId, customerPassword, shootId, original, video, colour, sepia, bandW);
-
-               File.WriteAllText(smugMugUploadCompleteFile, string.Empty); 
-
-               if (newCustomerSmugMugUrl != null)
-               {
-                  if (newCustomerSmugMugUrl != customerSmugMugUrl)
-                  {
-                     try
-                     {
-                        customerSmugMugUrl = newCustomerSmugMugUrl;
-                        customerIniFile.IniWriteValue("Account", "SmugMugUrl", customerSmugMugUrl);
-                     }
-                     catch (Exception e)
-                     {
-                        ConsolePrinter.Write(ConsoleColor.Red, e.ToString());
-                     }
-                  }
-
-                  if (emailCustomer &&
-                     !string.IsNullOrEmpty(customerEmailAddress) &&
-                     string.IsNullOrEmpty(customerIniFile.IniReadValue("SmugMug", "EmailSent")))
-                  {
-                     try
-                     {
-                        Console.WriteLine($"Emailing {customerEmailAddress} for accourn {customerId}");
-                        Email(emailBody.Replace("SMUGMUGURLADDRESS", customerSmugMugUrl), customerEmailAddress, customerId);
-                        customerIniFile.IniWriteValue("SmugMug", "EmailSent", "true");
-                     }
-                     catch (Exception e)
-                     {
-                        ConsolePrinter.Write(ConsoleColor.Red, e.ToString());
-                     }
-                  }
-               }
-               else
-               {
-                  ConsolePrinter.Write(ConsoleColor.Yellow, "No SmugMug Url returned :-( Not so SmugMug....");
-               }
-               Debug.WriteLine($"{customerEmailAddress} {customerSmugMugUrl} {customerPassword}");
+               Directory.CreateDirectory($@"\\khpserver\CustomerData\{customerId}");
             }
-            catch (Exception e)
+
+            File.WriteAllText(iniFileName, string.Empty);
+         }
+
+         var smugMugUploadCompleteFile = $@"{archiveFolder}\SmugMugUpload.Complete";
+         var customerIniFile = new IniFile(iniFileName);
+
+         if (useUploadedCheck && File.Exists(smugMugUploadCompleteFile) && !string.IsNullOrEmpty(customerIniFile.IniReadValue("Account", "SmugMugUrl")))
+         {
+            ConsolePrinter.Write(ConsoleColor.Yellow, $"{folderName} has already been uploaded");
+            return false;
+         }
+
+         return true;
+      }
+
+      private static void UploadArchiveFolder(DirectoryInfo archiveFolder, bool incudeOriginals, bool emailCustomer, bool useUploadedCheck)
+      {
+         try
+         {
+            var folderName = archiveFolder.Name;
+
+            var parts = folderName.Split('_');
+            var customerId = parts.Last();
+            var iniFileName = $@"\\khpserver\CustomerData\{customerId}\{customerId}.ini";
+            var customerIniFile = new IniFile(iniFileName);
+
+            var customerPassword = customerIniFile.IniReadValue("Contact", "Password");
+            var customerEmailAddress = customerIniFile.IniReadValue("Contact", "EMailAddress");
+            var customerSmugMugUrl = customerIniFile.IniReadValue("Account", "SmugMugUrl");
+
+            var shootId = parts.First();
+            if (customerId == "Haine")
             {
-               ConsolePrinter.Write(ConsoleColor.Red, e.ToString());
+               shootId = shootId.Substring(0, 4);
+               incudeOriginals = false;
             }
+
+            var original = incudeOriginals ? GetFiles($@"{archiveFolder.FullName}\ForCustomer\Original", "*.jpg") : new List<string>();
+
+            var colour = GetFiles($@"{archiveFolder.FullName}\ForCustomer\Edits\colour", "*.jpg");
+            var sepia = GetFiles($@"{archiveFolder.FullName}\ForCustomer\Edits\sepia", "*.jpg");
+            var bandW = GetFiles($@"{archiveFolder.FullName}\ForCustomer\Edits\BandW", "*.jpg");
+            var video = GetFiles($@"{archiveFolder.FullName}\ForCustomer", "*.mp4");
+
+            var newCustomerSmugMugUrl = _uploader.ProcessImages(customerId, customerPassword, shootId, original, video, colour, sepia, bandW);
+
+            if (!string.IsNullOrEmpty(newCustomerSmugMugUrl))
+            {
+               var smugMugUploadCompleteFile = $@"{archiveFolder.FullName}\SmugMugUpload.Complete";
+               File.WriteAllText(smugMugUploadCompleteFile, string.Empty);
+
+               if (newCustomerSmugMugUrl != customerSmugMugUrl)
+               {
+                  try
+                  {
+                     customerSmugMugUrl = newCustomerSmugMugUrl;
+                     customerIniFile.IniWriteValue("Account", "SmugMugUrl", customerSmugMugUrl);
+                  }
+                  catch (Exception e)
+                  {
+                     ConsolePrinter.Write(ConsoleColor.Red, e.ToString());
+                  }
+               }
+
+               if (emailCustomer &&
+                  !string.IsNullOrEmpty(customerEmailAddress) &&
+                  string.IsNullOrEmpty(customerIniFile.IniReadValue("SmugMug", "EmailSent")))
+               {
+                  try
+                  {
+                     Console.WriteLine($"Emailing {customerEmailAddress} for account {customerId}");
+                     Email(EmailBody.Replace("SMUGMUGURLADDRESS", customerSmugMugUrl), customerEmailAddress, customerId);
+                     customerIniFile.IniWriteValue("SmugMug", "EmailSent", "true");
+                  }
+                  catch (Exception e)
+                  {
+                     ConsolePrinter.Write(ConsoleColor.Red, e.ToString());
+                  }
+               }
+            }
+            else
+            {
+               ConsolePrinter.Write(ConsoleColor.Yellow, "No SmugMug Url returned :-( Not so SmugMug....");
+            }
+         }
+         catch (Exception e)
+         {
+            ConsolePrinter.Write(ConsoleColor.Red, e.ToString());
          }
       }
 
@@ -175,7 +212,7 @@
       {
          if (!Directory.Exists(path))
          {
-            ConsolePrinter.Write(ConsoleColor.Yellow, $"Path does note exists - {path}");
+            ConsolePrinter.Write(ConsoleColor.Yellow, $"Path does not exists - {path}");
             return new List<string>();
          }
 
@@ -201,35 +238,6 @@
          smtp.Send(message);
       }
 
-      private static void UploadHaineArchives()
-      {
-         Dictionary<string, (List<string> Colour, List<string> Sepia, List<string> BandW)> images = new Dictionary<string, (List<string> Colour, List<string> Sepia, List<string> BandW)>();
-
-         var haineArchives = Directory.GetDirectories(@"\\vmwarehost\KHPArchive\KHP_ARCHIVE", "*_Haine", SearchOption.TopDirectoryOnly);
-
-         foreach (var archiveFolder in haineArchives)
-         {
-            var year = new DirectoryInfo(archiveFolder).Name.Substring(0, 4);
-
-            if (!images.ContainsKey(year)) images.Add(year, (new List<string>(), new List<string>(), new List<string>()));
-
-            var editsFolder = $@"{archiveFolder}\ForCustomer\Edits";
-            if (Directory.Exists(editsFolder))
-            {
-               images[year].Colour.AddRange(Directory.GetFiles($@"{editsFolder}\colour", "*.jpg").Where(f => f.ToLower().Contains("facebook") == false));
-               images[year].Sepia.AddRange(Directory.GetFiles($@"{editsFolder}\sepia", "*.jpg").Where(f => f.ToLower().Contains("facebook") == false));
-               images[year].BandW.AddRange(Directory.GetFiles($@"{editsFolder}\BandW", "*.jpg").Where(f => f.ToLower().Contains("facebook") == false));
-            }
-         }
-
-         foreach (var year in images)
-         {
-            if (year.Value.Colour.Count + year.Value.Sepia.Count + year.Value.BandW.Count > 0)
-            {
-               _uploader.ProcessImages("Haine", "Ha1ne99", year.Key, null, null, year.Value.Colour, year.Value.Sepia, year.Value.BandW);
-            }
-         }
-      }
    }
 
    public class CustomerData

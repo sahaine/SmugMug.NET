@@ -68,9 +68,6 @@ namespace SmugMug.v2.Types
 
       public virtual string PatchUri { get { return Uri; } }
 
-
-
-
       public async Task SaveAsync()
       {
          // We get the modified properties and post them to the objects's uri
@@ -80,7 +77,6 @@ namespace SmugMug.v2.Types
             await PatchRequestAsync(Constants.Addresses.SmugMug + AppendSuffixToUrl(this.PatchUri), JsonHelpers.GetPayloadAsJson(patchPropertiesWithValues));
          }
       }
-
 
       protected async Task<TResult> CreateAsync<TResult>(string uri)
       {

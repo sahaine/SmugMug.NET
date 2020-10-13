@@ -612,11 +612,15 @@
          CustomersFolder = _rootNode.GetChildrenAsync(type: TypeEnum.Folder).Result.Single(f => f.Name == "Customers");
       }
 
-
       public NodeEntity GetSubNode(NodeEntity parentFolder, string subFolderName, TypeEnum nodeType, bool cached = true, string subFolderPassword = "NONE")
       {
-         var key = $"{parentFolder.Key}.{subFolderName}";
+         return GetSubNode(parentFolder, subFolderName, nodeType, out _, cached, subFolderPassword);
+      }
 
+      public NodeEntity GetSubNode(NodeEntity parentFolder, string subFolderName, TypeEnum nodeType, out bool haveCreated, bool cached = true, string subFolderPassword = "NONE")
+      {
+         var key = $"{parentFolder.Key}.{subFolderName}";
+         haveCreated = false;
          if (cached && _cache.ContainsKey(key))
          {
             ConsolePrinter.Write(ConsoleColor.Green, $"Loaded {nodeType} : {subFolderName} (cached)");
@@ -656,6 +660,11 @@
          };
 
          subFolder.CreateAsync(parentFolder).Wait();
+         haveCreated = true;
+
+         //Read it back in so we got all properties
+         subFolder = parentFolder.GetChildrenAsync(type: nodeType).Result?.FirstOrDefault(f => string.Equals(f.Name, subFolderName, StringComparison.CurrentCultureIgnoreCase));
+         subFolder.Key = key;
 
          _cache.Add(key, subFolder);
 
@@ -672,15 +681,10 @@
          List<string> sepias,
          List<string> bandWs)
       {
+
          if (string.IsNullOrWhiteSpace(customerName))
          {
-            ConsolePrinter.Write(ConsoleColor.Red, $"Customer Name not specfied!");
-            return null;
-         }
-
-         if (string.IsNullOrWhiteSpace(shootName))
-         {
-            ConsolePrinter.Write(ConsoleColor.Red, $"Shoot Name not specfied!");
+            ConsolePrinter.Write(ConsoleColor.Red, "Customer Name not specfied!");
             return null;
          }
 
@@ -690,58 +694,62 @@
             return null;
          }
 
+         if (string.IsNullOrWhiteSpace(shootName))
+         {
+            ConsolePrinter.Write(ConsoleColor.Red, $"{customerName} Shoot Name not specfied!");
+            return null;
+         }
+
+         if (!originals.Any() && !videos.Any()  && !colours.Any() && !sepias.Any() && !bandWs.Any())
+         {
+            ConsolePrinter.Write(ConsoleColor.Red, $"{customerName} {shootName} Nothing to upload!");
+            return null;
+         }
+
          var customerFolder = GetSubNode(CustomersFolder, customerName, TypeEnum.Folder, true, customerPassword);
 
          if (customerFolder == null)
          {
-            ConsolePrinter.Write(ConsoleColor.Red, $"No Customer Folder - Nothing we can do!");
+            ConsolePrinter.Write(ConsoleColor.Red, $"{customerName} : No Customer Folder - Nothing we can do!");
             return null;
          }
 
-         var incudeOriginals = true;
-
-         if (customerName == "Haine" && shootName.Substring(0, 2) == "20")
+         if (customerName == "Haine")
          {
             shootName = shootName.Substring(0, 4);
-            incudeOriginals = false;
          }
 
          var shootFolder = GetSubNode(customerFolder, shootName, TypeEnum.Folder);
+         Upload(shootFolder, "Original", originals, true);
+         Upload(shootFolder, "Video", videos, true);
+
          var editsFolder = GetSubNode(shootFolder, "Edits", TypeEnum.Folder);
-
-         if (incudeOriginals)
-         {
-            Upload(shootFolder, "Original", originals);
-         }
-
-         Upload(editsFolder, "Colour", colours);
-         Upload(editsFolder, "Sepia", sepias);
-         Upload(editsFolder, "BandW", bandWs);
-         Upload(shootFolder, "Video", videos);
-
-         //var folderUri = customersFolder.Uris.Single(uri => uri.Key == "FolderByID").Value.Uri;
-         //var folder = FolderEntity.RetrieveEntityAsync<FolderEntity>(_oauthToken, $"{Constants.Addresses.SmugMugApi}{folderUri}").Result;
+         Upload(editsFolder, "Colour", colours, true);
+         Upload(editsFolder, "Sepia", sepias, true);
+         Upload(editsFolder, "BandW", bandWs, true);
 
          return customerFolder.WebUri;
       }
 
-      public void Upload(NodeEntity parentFolder, string albumName, List<string> files)
+      public void Upload(NodeEntity parentFolder, string albumName, List<string> files, bool doFileCountCheck)
       {
          if (files?.Any() != true)
          {
             return;
          }
-
-         if (files.Any(f => f.ToLower().EndsWith(".jpg")))
-         {
-            files.Add("\\\\khpserver\\Documents\\CopyrightRelease.JPG");
-         }
-
-         ConsolePrinter.Write(ConsoleColor.White, $"Uploading {files.Count()} images to {albumName}.");
-
+               
          try
          {
-            var albumNode = GetSubNode(parentFolder, albumName, TypeEnum.Album);
+            var albumNode = GetSubNode(parentFolder, albumName, TypeEnum.Album, out bool addCopyright);
+
+            if (addCopyright && files.Any(f => f.ToLower().EndsWith(".jpg")))
+            {
+               files.Add(@"\\khpserver\Documents\CopyrightRelease.JPG");
+            }
+
+            var customerId = albumNode.Key.Split('.')[1];
+
+            ConsolePrinter.Write(ConsoleColor.White, $"Uploading {files.Count()} images to {customerId} {albumName}.");
 
             var albumUri = albumNode.Uris.Single(uri => uri.Key == "Album").Value.Uri;
             var album = AlbumEntity.RetrieveEntityAsync<AlbumEntity>(_oauthToken, $"{Constants.Addresses.SmugMugApi}{albumUri}").Result;
@@ -755,16 +763,15 @@
             }
             else
             {
-               ConsolePrinter.Write(ConsoleColor.Green, $"Album template on {albumNode.Key} is set to {template.Name}.");
+               ConsolePrinter.Write(ConsoleColor.Green, $"Album template on {albumNode.Key} is already set to {template.Name}.");
             }
 
             var existingItems = album.GetImagesAsync().Result?.Select(i => i.FileName).ToList();
-
             var existingItemCount = existingItems?.Count ?? 0;
 
-            if (files.Count() > 1 && existingItemCount == files.Count())
+            if (doFileCountCheck && files.Count() > 1 && existingItemCount >= files.Count())
             {
-               ConsolePrinter.Write(ConsoleColor.White, $"No folder upload action required Folder counts match {existingItemCount}.");
+               ConsolePrinter.Write(ConsoleColor.White, $"No folder upload action required Folder counts match have {files.Count()} exist {existingItemCount}.");
                return;
             }
 
@@ -777,7 +784,6 @@
                _oauthToken.TokenSecret);
 
             using (var client = new HttpClient(oAuthhandler))
-            //using (var client = new HttpClient())
             {
                client.Timeout = TimeSpan.FromDays(1);
                client.DefaultRequestHeaders.Accept.Clear();
@@ -814,7 +820,7 @@
                      var etaDuration = TimeSpan.FromSeconds((dataToProcessKb + _lastSizeInKb) / speed);
 
                      ConsolePrinter.Write(ConsoleColor.Cyan, $"Uploading {fileItem.Name} size-{_lastSizeInKb}kb timeout-{timeout} Duration-{fileDuration:mm\\:ss}");
-                     ConsolePrinter.Write(ConsoleColor.Cyan, $"{filesToProcess} still to process Finish-{DateTime.Now.Add(etaDuration).AddSeconds(filesToProcess * 1.4):T}");
+                     ConsolePrinter.Write(ConsoleColor.Cyan, $"{customerId} {albumName} {filesToProcess} still to process Finish-{DateTime.Now.Add(etaDuration).AddSeconds(filesToProcess * 1.4):T}");
 
                      var md5CheckSum = GetCheckSum(file);
 
